@@ -1,0 +1,908 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GeoJSON - Heatmap</title>
+    <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
+    <link href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet" />
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+        }
+        
+        #map {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 100%;
+        }
+        
+        .drop-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 124, 191, 0.2);
+            z-index: 2000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            border: 5px dashed #007cbf;
+            box-sizing: border-box;
+        }
+        
+        .drop-overlay.active {
+            display: flex;
+        }
+        
+        .drop-message {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 30px;
+            border-radius: 10px;
+            text-align: center;
+            font-size: 18px;
+            font-weight: bold;
+            color: #007cbf;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+        }
+        
+        .controls {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 1000;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 8px;
+            padding: 15px;
+            width: 240px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .controls.minimized {
+            width: 120px;
+            height: 40px;
+            padding: 8px 12px;
+            cursor: pointer;
+        }
+        
+        .controls.minimized .controls-content {
+            display: none;
+        }
+        
+        .controls.minimized .minimized-text {
+            display: block;
+            font-size: 12px;
+            color: #666;
+            text-align: center;
+            line-height: 24px;
+        }
+        
+        .controls h4 {
+            margin: 0;
+            font-size: 14px;
+            color: #333;
+        }
+        
+        .file-input-container {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 1000;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .file-input-container.minimized {
+            width: 120px;
+            height: 40px;
+            padding: 8px 12px;
+            cursor: pointer;
+        }
+        
+        .file-input-container.minimized .file-input-content {
+            display: none;
+        }
+        
+        .file-input-container.minimized .minimized-text {
+            display: block;
+            font-size: 12px;
+            color: #666;
+            text-align: center;
+            line-height: 24px;
+        }
+        
+        .minimized-text {
+            display: none;
+        }
+        
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .close-button {
+            background: none;
+            border: none;
+            font-size: 16px;
+            cursor: pointer;
+            color: #666;
+            padding: 0;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 3px;
+        }
+        
+        .close-button:hover {
+            background-color: #f0f0f0;
+            color: #333;
+        }
+        
+        .file-input-container h4 {
+            margin: 0;
+            font-size: 14px;
+            color: #333;
+        }
+        
+        .field-selector {
+            margin-top: 10px;
+        }
+        
+        .field-selector select {
+            width: 100%;
+            padding: 5px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+        
+        .info {
+            margin-top: 10px;
+            font-size: 12px;
+            color: #666;
+        }
+        
+        .status {
+            margin-top: 10px;
+            padding: 5px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+        
+        .status.success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .status.error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .color-mode {
+            margin-top: 10px;
+            font-size: 14px;
+        }
+        
+        .color-mode input[type="checkbox"] {
+            margin-right: 5px;
+        }
+        
+        .label-mode {
+            margin-top: 10px;
+            font-size: 14px;
+        }
+        
+        .label-mode input[type="checkbox"] {
+            margin-right: 5px;
+        }
+        
+        .color-legend {
+            margin-top: 10px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+            font-size: 12px;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin: 2px 0;
+        }
+        
+        .legend-color {
+            width: 20px;
+            height: 15px;
+            margin-right: 8px;
+            border: 1px solid #ccc;
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    
+    <!-- ドラッグ&ドロップ用のオーバーレイ -->
+    <div class="drop-overlay" id="dropOverlay">
+        <div class="drop-message">
+            <div>GeoJSONファイルをここにドロップ</div>
+            <div style="font-size: 14px; margin-top: 10px; font-weight: normal;">
+                (.geojson または .json ファイル)
+            </div>
+        </div>
+    </div>
+    
+    <!-- ファイル選択ボタン -->
+    <div class="file-input-container" id="fileInputContainer">
+        <div class="panel-header">
+            <h4>GeoJson選択・画面上にドロップ</h4>
+            <button class="close-button" id="fileInputClose" title="最小化">×</button>
+        </div>
+        <div class="file-input-content">
+            <input type="file" id="fileInput" accept=".geojson,.json">
+        </div>
+        <!-- <div class="minimized-text">ファイル選択</div> -->
+    </div>
+    
+    <div class="controls" id="controls" style="display: none;">
+        <div class="panel-header">
+            <h4>表示設定</h4>
+            <button class="close-button" id="controlsClose" title="最小化">×</button>
+        </div>
+        <div class="controls-content">
+            <div class="field-selector">
+                <label for="fieldSelect">表示フィールド:</label>
+                <select id="fieldSelect">
+                    <option value="">選択してください</option>
+                </select>
+            </div>
+            <div class="label-mode">
+                <label>
+                    <input type="checkbox" id="labelMode" checked> 文字ラベル表示
+                </label>
+            </div>
+            <div class="color-mode">
+                <label>
+                    <input type="checkbox" id="heatmapMode"> ヒートマップ表示
+                </label>
+            </div>
+            <div class="color-legend" id="colorLegend" style="display: none;">
+                <h5>色分け凡例</h5>
+                <div id="legendContent"></div>
+            </div>
+            <div class="info">
+                <div>フィーチャ数: <span id="featureCount">0</span></div>
+                <div id="fieldInfo" style="margin-top: 5px;"></div>
+            </div>
+            <div id="status"></div>
+        </div>
+        <!-- <div class="minimized-text">表示設定</div> -->
+    </div>
+
+    <script>
+        // 前橋市役所の座標 (緯度: 36.389494, 経度: 139.063437)
+        const MAEBASHI_CITY_HALL = [139.063437, 36.389494];
+        
+        // マップの初期化
+        const map = new maplibregl.Map({
+            container: 'map',
+            style: {
+                'version': 8,
+                'glyphs': 'https://fonts.openmaptiles.org/{fontstack}/{range}.pbf',
+                'sources': {
+                    'osm': {
+                        'type': 'raster',
+                        'tiles': [
+                            'https://tile.openstreetmap.org/{z}/{x}/{y}.png'
+                        ],
+                        'tileSize': 256,
+                        'attribution': '© OpenStreetMap contributors'
+                    }
+                },
+                'layers': [{
+                    'id': 'osm',
+                    'type': 'raster',
+                    'source': 'osm'
+                }]
+            },
+            center: MAEBASHI_CITY_HALL,
+            zoom: 15,
+            maxZoom: 22
+        });
+        
+        // 前橋市役所にマーカーを追加
+        new maplibregl.Marker({ color: '#ff0000' })
+            .setLngLat(MAEBASHI_CITY_HALL)
+            .setPopup(new maplibregl.Popup().setHTML('<h4>前橋市役所</h4>'))
+            .addTo(map);
+        
+        let currentGeoJSON = null;
+        let currentField = null;
+        let isHeatmapMode = false;
+        let isLabelMode = true;
+        let fieldStats = null;
+        
+        // DOM要素の取得
+        const dropOverlay = document.getElementById('dropOverlay');
+        const fileInput = document.getElementById('fileInput');
+        const fileInputContainer = document.getElementById('fileInputContainer');
+        const fileInputClose = document.getElementById('fileInputClose');
+        const controls = document.getElementById('controls');
+        const controlsClose = document.getElementById('controlsClose');
+        const fieldSelect = document.getElementById('fieldSelect');
+        const featureCount = document.getElementById('featureCount');
+        const status = document.getElementById('status');
+        const heatmapMode = document.getElementById('heatmapMode');
+        const labelMode = document.getElementById('labelMode');
+        const colorLegend = document.getElementById('colorLegend');
+        const legendContent = document.getElementById('legendContent');
+        const fieldInfo = document.getElementById('fieldInfo');
+        
+        // パネルの最小化/復元機能
+        fileInputClose.addEventListener('click', (e) => {
+            e.stopPropagation();
+            fileInputContainer.classList.add('minimized');
+        });
+        
+        fileInputContainer.addEventListener('click', (e) => {
+            if (fileInputContainer.classList.contains('minimized')) {
+                e.stopPropagation();
+                fileInputContainer.classList.remove('minimized');
+            }
+        });
+        
+        controlsClose.addEventListener('click', (e) => {
+            e.stopPropagation();
+            controls.classList.add('minimized');
+        });
+        
+        controls.addEventListener('click', (e) => {
+            if (controls.classList.contains('minimized')) {
+                e.stopPropagation();
+                controls.classList.remove('minimized');
+            }
+        });
+        
+        // ウィンドウ全体でのドラッグ&ドロップイベント
+        let dragCounter = 0;
+        
+        window.addEventListener('dragenter', (e) => {
+            e.preventDefault();
+            dragCounter++;
+            if (dragCounter === 1) {
+                dropOverlay.classList.add('active');
+            }
+        });
+        
+        window.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            dragCounter--;
+            if (dragCounter === 0) {
+                dropOverlay.classList.remove('active');
+            }
+        });
+        
+        window.addEventListener('dragover', (e) => {
+            e.preventDefault();
+        });
+        
+        window.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dragCounter = 0;
+            dropOverlay.classList.remove('active');
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFile(files[0]);
+            }
+        });
+        
+        // ファイル選択イベント
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFile(e.target.files[0]);
+            }
+        });
+        
+        // フィールド選択イベント
+        fieldSelect.addEventListener('change', (e) => {
+            currentField = e.target.value;
+            if (currentField && currentGeoJSON) {
+                analyzeField();
+                updateVisualization();
+            } else {
+                clearVisualization();
+            }
+        });
+        
+        // ヒートマップモード切り替えイベント
+        heatmapMode.addEventListener('change', (e) => {
+            isHeatmapMode = e.target.checked;
+            if (currentField && currentGeoJSON) {
+                updateVisualization();
+            }
+        });
+        
+        // ラベルモード切り替えイベント
+        labelMode.addEventListener('change', (e) => {
+            isLabelMode = e.target.checked;
+            if (currentField && currentGeoJSON) {
+                updateVisualization();
+            }
+        });
+        
+        // ファイル処理関数
+        function handleFile(file) {
+            if (!file.name.toLowerCase().endsWith('.geojson') && !file.name.toLowerCase().endsWith('.json')) {
+                showStatus('GeoJSONファイル（.geojson または .json）を選択してください', 'error');
+                return;
+            }
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const geoJSON = JSON.parse(e.target.result);
+                    loadGeoJSON(geoJSON);
+                    showStatus('GeoJSONファイルが正常に読み込まれました', 'success');
+                } catch (error) {
+                    showStatus('ファイルの解析エラー: ' + error.message, 'error');
+                }
+            };
+            reader.readAsText(file);
+        }
+        
+        // GeoJSON読み込み関数
+        function loadGeoJSON(geoJSON) {
+            currentGeoJSON = geoJSON;
+            
+            // 既存のレイヤーとソースを削除
+            if (map.getLayer('geojson-fill')) map.removeLayer('geojson-fill');
+            if (map.getLayer('geojson-line')) map.removeLayer('geojson-line');
+            if (map.getLayer('geojson-labels')) map.removeLayer('geojson-labels');
+            if (map.getSource('geojson')) map.removeSource('geojson');
+            
+            // 新しいソースを追加
+            map.addSource('geojson', {
+                'type': 'geojson',
+                'data': geoJSON
+            });
+            
+            // ポリゴンの塗りつぶしレイヤー
+            map.addLayer({
+                'id': 'geojson-fill',
+                'type': 'fill',
+                'source': 'geojson',
+                'paint': {
+                    'fill-color': '#088',
+                    'fill-opacity': 0.5
+                }
+            });
+            
+            // ポリゴンの境界線レイヤー
+            map.addLayer({
+                'id': 'geojson-line',
+                'type': 'line',
+                'source': 'geojson',
+                'paint': {
+                    'line-color': '#088',
+                    'line-width': 2
+                }
+            });
+            
+            // フィーチャ数を更新
+            const count = geoJSON.features ? geoJSON.features.length : 0;
+            featureCount.textContent = count;
+            
+            // フィールド選択肢を更新
+            updateFieldOptions();
+            
+            // マップを GeoJSON の範囲に合わせる
+            fitMapToGeoJSON(geoJSON);
+            
+            // コントロールパネルを表示
+            controls.style.display = 'block';
+        }
+        
+        // フィールド選択肢更新関数
+        function updateFieldOptions() {
+            fieldSelect.innerHTML = '<option value="">選択してください</option>';
+            
+            if (!currentGeoJSON || !currentGeoJSON.features || currentGeoJSON.features.length === 0) return;
+            
+            // 全フィーチャのプロパティからフィールド一覧を取得
+            const allFields = new Set();
+            currentGeoJSON.features.forEach(feature => {
+                if (feature.properties) {
+                    Object.keys(feature.properties).forEach(key => allFields.add(key));
+                }
+            });
+            
+            Array.from(allFields).sort().forEach(key => {
+                const option = document.createElement('option');
+                option.value = key;
+                option.textContent = key;
+                fieldSelect.appendChild(option);
+            });
+        }
+        
+        // フィールド分析関数
+        function analyzeField() {
+            if (!currentField || !currentGeoJSON) return;
+            
+            const values = [];
+            let isNumeric = true;
+            let isInteger = true;
+            let numericValues = [];
+            
+            currentGeoJSON.features.forEach(feature => {
+                const value = feature.properties[currentField];
+                if (value !== null && value !== undefined && value !== '') {
+                    values.push(value);
+                    
+                    // 数値判定
+                    const numValue = parseFloat(value);
+                    if (isNaN(value) || isNaN(numValue)) {
+                        isNumeric = false;
+                        isInteger = false;
+                    } else {
+                        numericValues.push(numValue);
+                        // 整数判定
+                        if (isInteger && !Number.isInteger(numValue)) {
+                            isInteger = false;
+                        }
+                    }
+                }
+            });
+            
+            fieldStats = {
+                isNumeric: isNumeric,
+                isInteger: isInteger,
+                values: values,
+                numericValues: numericValues,
+                uniqueCount: new Set(values).size
+            };
+            
+            if (isNumeric && numericValues.length > 0) {
+                fieldStats.min = Math.min(...numericValues);
+                fieldStats.max = Math.max(...numericValues);
+                fieldStats.avg = numericValues.reduce((a, b) => a + b, 0) / numericValues.length;
+            }
+            
+            updateFieldInfo();
+        }
+        
+        // フィールド情報更新関数
+        function updateFieldInfo() {
+            if (!fieldStats) {
+                fieldInfo.textContent = '';
+                return;
+            }
+            
+            let dataType = 'テキスト';
+            if (fieldStats.isNumeric) {
+                dataType = fieldStats.isInteger ? '整数' : '小数';
+            }
+            
+            let info = `タイプ: ${dataType}, `;
+            info += `ユニーク値: ${fieldStats.uniqueCount}`;
+            
+            if (fieldStats.isNumeric) {
+                const minDisplay = fieldStats.isInteger ? fieldStats.min.toString() : fieldStats.min.toFixed(2);
+                const maxDisplay = fieldStats.isInteger ? fieldStats.max.toString() : fieldStats.max.toFixed(2);
+                const avgDisplay = fieldStats.isInteger ? Math.round(fieldStats.avg).toString() : fieldStats.avg.toFixed(2);
+                
+                info += `<br>範囲: ${minDisplay} - ${maxDisplay}`;
+                info += `<br>平均: ${avgDisplay}`;
+                info += `<br>数値データ: ${fieldStats.numericValues.length}/${fieldStats.values.length}`;
+            }
+            
+            fieldInfo.innerHTML = info;
+            
+            // ヒートマップモードのチェックボックス表示制御
+            if (fieldStats.isNumeric && fieldStats.numericValues.length > 0) {
+                heatmapMode.parentElement.style.display = 'block';
+            } else {
+                heatmapMode.parentElement.style.display = 'none';
+                heatmapMode.checked = false;
+                isHeatmapMode = false;
+            }
+        }
+        
+        // 可視化更新関数
+        function updateVisualization() {
+            // まずポリゴンの色をリセット
+            if (map.getLayer('geojson-fill')) {
+                map.setPaintProperty('geojson-fill', 'fill-color', '#088');
+            }
+            
+            // ヒートマップモードの処理
+            if (isHeatmapMode && fieldStats && fieldStats.isNumeric) {
+                updateHeatmap();
+                colorLegend.style.display = 'block';
+                updateColorLegend();
+            } else {
+                colorLegend.style.display = 'none';
+            }
+            
+            // ラベルモードの処理（ヒートマップとは独立）
+            if (isLabelMode) {
+                updateLabels();
+            } else {
+                // ラベル非表示
+                if (map.getLayer('geojson-labels')) {
+                    map.removeLayer('geojson-labels');
+                }
+            }
+        }
+        
+        // 可視化クリア関数
+        function clearVisualization() {
+            // ラベルレイヤーを削除
+            if (map.getLayer('geojson-labels')) {
+                map.removeLayer('geojson-labels');
+            }
+            
+            // ポリゴンの色を元に戻す
+            if (map.getLayer('geojson-fill')) {
+                map.setPaintProperty('geojson-fill', 'fill-color', '#088');
+            }
+            
+            colorLegend.style.display = 'none';
+            fieldInfo.innerHTML = '';
+        }
+        
+        // ヒートマップ更新関数
+        function updateHeatmap() {
+            if (!currentField || !currentGeoJSON || !fieldStats.isNumeric) return;
+            
+            // 数値のみを対象とした色分け表現を作成
+            const colorExpression = [
+                'case',
+                // 数値でない場合はデフォルト色（グレー）
+                ['!=', ['typeof', ['get', currentField]], 'number'],
+                '#cccccc',
+                // 数値の場合は interpolate で色分け
+                [
+                    'interpolate',
+                    ['linear'],
+                    ['to-number', ['get', currentField], fieldStats.min]
+                ]
+            ];
+            
+            // 5段階の色分け
+            const steps = 5;
+            for (let i = 0; i <= steps; i++) {
+                const ratio = i / steps;
+                const value = fieldStats.min + (fieldStats.max - fieldStats.min) * ratio;
+                const color = getHeatmapColor(ratio);
+                colorExpression[3].push(value, color);
+            }
+            
+            map.setPaintProperty('geojson-fill', 'fill-color', colorExpression);
+        }
+        
+        // ヒートマップ色取得関数
+        function getHeatmapColor(ratio) {
+            // 0%〜2%の範囲を青色で表示
+            if (ratio >= 0 && ratio <= 0.02) {
+                return 'rgb(0,0,255)'; // 青
+            }
+            
+            // 98%〜100%の範囲を赤色で表示
+            if (ratio >= 0.98 && ratio <= 1.0) {
+                return 'rgb(255,0,0)'; // 赤
+            }
+            
+            // 48%〜52%の範囲を白色で表示し、メリハリを強調
+            if (ratio >= 0.48 && ratio <= 0.52) {
+                return 'rgb(255,255,255)'; // 白
+            }
+            
+            // 青→緑めの青→白→黄色が混じるオレンジ→赤のグラデーション
+            const colors = [
+                [0, 0, 255],     // 青 (0-2%)
+                [0, 255, 216],   // 緑めの青 (25%)
+                [255, 255, 255], // 白 (48-52%)
+                [255, 217, 0],   // 黄色が混じるオレンジ (75%)
+                [255, 0, 0]      // 赤 (98-100%)
+            ];
+            
+            // 比率を調整（固定色範囲を除く）
+            let adjustedRatio;
+            if (ratio > 0.02 && ratio < 0.48) {
+                // 2%〜48%の範囲を0〜0.5にマッピング
+                adjustedRatio = ((ratio - 0.02) / 0.46) * 0.5;
+            } else if (ratio > 0.52 && ratio < 0.98) {
+                // 52%〜98%の範囲を0.5〜1にマッピング
+                adjustedRatio = 0.5 + ((ratio - 0.52) / 0.46) * 0.5;
+            } else {
+                // フォールバック（通常は上の条件で処理される）
+                adjustedRatio = ratio;
+            }
+            
+            const scaledRatio = adjustedRatio * (colors.length - 1);
+            const index = Math.floor(scaledRatio);
+            const fraction = scaledRatio - index;
+            
+            if (index >= colors.length - 1) {
+                return `rgb(${colors[colors.length - 1].join(',')})`;
+            }
+            
+            const color1 = colors[index];
+            const color2 = colors[index + 1];
+            
+            const r = Math.round(color1[0] + (color2[0] - color1[0]) * fraction);
+            const g = Math.round(color1[1] + (color2[1] - color1[1]) * fraction);
+            const b = Math.round(color1[2] + (color2[2] - color1[2]) * fraction);
+            
+            return `rgb(${r},${g},${b})`;
+        }
+        
+        // 色分け凡例更新関数
+        function updateColorLegend() {
+            if (!fieldStats.isNumeric) return;
+            
+            legendContent.innerHTML = '';
+            
+            // 数値以外のデータがある場合は説明を追加
+            if (fieldStats.values.length > fieldStats.numericValues.length) {
+                const nonNumericItem = document.createElement('div');
+                nonNumericItem.className = 'legend-item';
+                
+                const colorBox = document.createElement('div');
+                colorBox.className = 'legend-color';
+                colorBox.style.backgroundColor = '#cccccc';
+                
+                const label = document.createElement('span');
+                label.textContent = '非数値データ';
+                
+                nonNumericItem.appendChild(colorBox);
+                nonNumericItem.appendChild(label);
+                legendContent.appendChild(nonNumericItem);
+            }
+            
+            const steps = 5;
+            // 最高値から最小値の順で表示（逆順）
+            for (let i = steps; i >= 0; i--) {
+                const ratio = i / steps;
+                const value = fieldStats.min + (fieldStats.max - fieldStats.min) * ratio;
+                const color = getHeatmapColor(ratio);
+                
+                const legendItem = document.createElement('div');
+                legendItem.className = 'legend-item';
+                
+                const colorBox = document.createElement('div');
+                colorBox.className = 'legend-color';
+                colorBox.style.backgroundColor = color;
+                
+                const label = document.createElement('span');
+                // 整数の場合は小数点なし、小数の場合は2桁まで表示
+                label.textContent = fieldStats.isInteger ? Math.round(value).toString() : value.toFixed(2);
+                
+                legendItem.appendChild(colorBox);
+                legendItem.appendChild(label);
+                legendContent.appendChild(legendItem);
+            }
+        }
+        
+        // ラベル更新関数
+        function updateLabels() {
+            // 既存のラベルレイヤーを削除
+            if (map.getLayer('geojson-labels')) {
+                map.removeLayer('geojson-labels');
+            }
+            
+            if (!currentField || !currentGeoJSON) return;
+            
+            // ラベル表示用のレイヤーを追加
+            map.addLayer({
+                'id': 'geojson-labels',
+                'type': 'symbol',
+                'source': 'geojson',
+                'layout': {
+                    'text-field': ['get', currentField],
+                    'text-font': ['Open Sans Regular'],
+                    'text-size': 12,
+                    'text-anchor': 'center',
+                    'text-offset': [0, 0],
+                    'text-allow-overlap': true,
+                    'text-ignore-placement': false,
+                    'visibility': 'visible'
+                },
+                'paint': {
+                    'text-color': '#000',
+                    'text-halo-color': '#fff',
+                    'text-halo-width': 2,
+                    'text-opacity': [
+                        'interpolate',
+                        ['linear'],
+                        ['zoom'],
+                        19, 0,      // ズームレベル19で完全非表示
+                        20, 1       // ズームレベル20で完全表示
+                    ]
+                }
+            });
+            
+            // ポリゴンの色はヒートマップモードでない場合のみリセット
+            if (!isHeatmapMode && map.getLayer('geojson-fill')) {
+                map.setPaintProperty('geojson-fill', 'fill-color', '#088');
+            }
+        }
+        
+        // マップをGeoJSONの範囲に合わせる関数
+        function fitMapToGeoJSON(geoJSON) {
+            if (!geoJSON.features || geoJSON.features.length === 0) return;
+            
+            const bounds = new maplibregl.LngLatBounds();
+            
+            geoJSON.features.forEach(feature => {
+                if (feature.geometry.type === 'Polygon') {
+                    feature.geometry.coordinates[0].forEach(coord => {
+                        bounds.extend(coord);
+                    });
+                } else if (feature.geometry.type === 'MultiPolygon') {
+                    feature.geometry.coordinates.forEach(polygon => {
+                        polygon[0].forEach(coord => {
+                            bounds.extend(coord);
+                        });
+                    });
+                }
+            });
+            
+            map.fitBounds(bounds, { padding: 50 });
+        }
+        
+        // ステータス表示関数
+        function showStatus(message, type) {
+            status.textContent = message;
+            status.className = `status ${type}`;
+            
+            if (type === 'success') {
+                setTimeout(() => {
+                    status.textContent = '';
+                    status.className = 'status';
+                }, 3000);
+            }
+        }
+        
+        // マップクリックイベント（フィーチャ情報表示）
+        map.on('click', 'geojson-fill', (e) => {
+            const properties = e.features[0].properties;
+            let popupContent = '<h4>フィーチャ情報</h4>';
+            
+            Object.keys(properties).forEach(key => {
+                popupContent += `<p><strong>${key}:</strong> ${properties[key]}</p>`;
+            });
+            
+            new maplibregl.Popup()
+                .setLngLat(e.lngLat)
+                .setHTML(popupContent)
+                .addTo(map);
+        });
+        
+        // マウスカーソル変更
+        map.on('mouseenter', 'geojson-fill', () => {
+            map.getCanvas().style.cursor = 'pointer';
+        });
+        
+        map.on('mouseleave', 'geojson-fill', () => {
+            map.getCanvas().style.cursor = '';
+        });
+        
+        console.log('GeoJSON Map Viewer が初期化されました');
+        console.log('前橋市役所を中心とした地図が表示されています');
+    </script>
+</body>
+</html>
