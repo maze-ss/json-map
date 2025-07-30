@@ -63,10 +63,16 @@
         }
         
         .controls.minimized {
-            width: 120px;
-            height: 40px;
-            padding: 8px 12px;
+            width: 50px;
+            height: 50px;
+            padding: 0;
             cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #008B8B;
+            border-radius: 50%;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
         }
         
         .controls.minimized .controls-content {
@@ -76,9 +82,15 @@
         .controls.minimized .minimized-text {
             display: block;
             font-size: 12px;
-            color: #666;
+            color: white;
             text-align: center;
-            line-height: 24px;
+            line-height: 1;
+            font-weight: bold;
+            width: 100%;
+        }
+        
+        .controls.minimized .panel-header {
+            display: none;
         }
         
         .controls h4 {
@@ -99,10 +111,16 @@
         }
         
         .file-input-container.minimized {
-            width: 120px;
-            height: 40px;
-            padding: 8px 12px;
+            width: 50px;
+            height: 50px;
+            padding: 0;
             cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #008B8B;
+            border-radius: 50%;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
         }
         
         .file-input-container.minimized .file-input-content {
@@ -112,9 +130,15 @@
         .file-input-container.minimized .minimized-text {
             display: block;
             font-size: 12px;
-            color: #666;
+            color: white;
             text-align: center;
-            line-height: 24px;
+            line-height: 1;
+            font-weight: bold;
+            width: 100%;
+        }
+        
+        .file-input-container.minimized .panel-header {
+            display: none;
         }
         
         .minimized-text {
@@ -156,6 +180,10 @@
         
         .field-selector {
             margin-top: 10px;
+        }
+        
+        .field-selector label {
+            font-size: 12px;
         }
         
         .field-selector select {
@@ -229,6 +257,126 @@
             margin-right: 8px;
             border: 1px solid #ccc;
         }
+        
+        .basemap-controls {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            z-index: 1000;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 8px;
+            padding: 15px;
+            width: 180px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .basemap-controls.minimized {
+            width: 50px;
+            height: 50px;
+            padding: 0;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #008B8B;
+            border-radius: 50%;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+        
+        .basemap-controls.minimized .basemap-content {
+            display: none;
+        }
+        
+        .basemap-controls.minimized .minimized-text {
+            display: block;
+            font-size: 12px;
+            color: white;
+            text-align: center;
+            line-height: 1;
+            font-weight: bold;
+            width: 100%;
+        }
+        
+        .basemap-controls.minimized .panel-header {
+            display: none;
+        }
+        
+        .basemap-controls h4 {
+            margin: 0 0 10px 0;
+            font-size: 14px;
+            color: #333;
+        }
+        
+        .basemap-selector {
+            margin-bottom: 10px;
+        }
+        
+        .basemap-selector label {
+            font-size: 12px;
+        }
+        
+        .basemap-selector select {
+            width: 100%;
+            padding: 5px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+            font-size: 12px;
+        }
+        
+        .basemap-opacity {
+            font-size: 12px;
+        }
+        
+        .basemap-opacity label {
+            display: block;
+            margin-bottom: 3px;
+        }
+        
+        .opacity-controls {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .basemap-opacity input[type="range"] {
+            flex: 1;
+            margin: 0;
+        }
+        
+        .opacity-value {
+            font-size: 11px;
+            color: #666;
+            min-width: 35px;
+            text-align: right;
+        }
+        
+        .line-width-control {
+            margin-top: 10px;
+            font-size: 12px;
+        }
+        
+        .line-width-control label {
+            display: block;
+            margin-bottom: 3px;
+        }
+        
+        .line-width-controls {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .line-width-control input[type="range"] {
+            flex: 1;
+            margin: 0;
+        }
+        
+        .line-width-value {
+            font-size: 11px;
+            color: #666;
+            min-width: 30px;
+            text-align: right;
+        }
     </style>
 </head>
 <body>
@@ -253,7 +401,7 @@
         <div class="file-input-content">
             <input type="file" id="fileInput" accept=".geojson,.json">
         </div>
-        <!-- <div class="minimized-text">ファイル選択</div> -->
+        <div class="minimized-text">選択</div>
     </div>
     
     <div class="controls" id="controls" style="display: none;">
@@ -278,6 +426,13 @@
                     <input type="checkbox" id="heatmapMode"> ヒートマップ表示
                 </label>
             </div>
+            <div class="line-width-control">
+                <label for="lineWidth">ライン幅:</label>
+                <div class="line-width-controls">
+                    <input type="range" id="lineWidth" min="0" max="3" value="2" step="0.1">
+                    <div class="line-width-value" id="lineWidthValue">2.0</div>
+                </div>
+            </div>
             <div class="color-legend" id="colorLegend" style="display: none;">
                 <h5>色分け凡例</h5>
                 <div id="legendContent"></div>
@@ -288,17 +443,42 @@
             </div>
             <div id="status"></div>
         </div>
-        <!-- <div class="minimized-text">表示設定</div> -->
+        <div class="minimized-text">表示</div>
+    </div>
+
+    <!-- 背景地図コントロール -->
+    <div class="basemap-controls" id="basemapControls">
+        <div class="panel-header">
+            <h4>背景地図</h4>
+            <button class="close-button" id="basemapClose" title="最小化">×</button>
+        </div>
+        <div class="basemap-content">
+            <div class="basemap-selector">
+                <label for="basemapSelect">地図種別:</label>
+                <select id="basemapSelect">
+                    <option value="osm">OpenStreetMap</option>
+                    <option value="gsi-pale">地理院地図（淡色）</option>
+                    <option value="gsi-photo">地理院地図（写真）</option>
+                </select>
+            </div>
+            <div class="basemap-opacity">
+                <label for="basemapOpacity">透明度:</label>
+                <div class="opacity-controls">
+                    <input type="range" id="basemapOpacity" min="0" max="100" value="100" step="1">
+                    <div class="opacity-value" id="opacityValue">100%</div>
+                </div>
+            </div>
+        </div>
+        <div class="minimized-text">背景</div>
     </div>
 
     <script>
         // 前橋市役所の座標 (緯度: 36.389494, 経度: 139.063437)
         const MAEBASHI_CITY_HALL = [139.063437, 36.389494];
         
-        // マップの初期化
-        const map = new maplibregl.Map({
-            container: 'map',
-            style: {
+        // 背景地図の定義
+        const basemapStyles = {
+            osm: {
                 'version': 8,
                 'glyphs': 'https://fonts.openmaptiles.org/{fontstack}/{range}.pbf',
                 'sources': {
@@ -312,11 +492,55 @@
                     }
                 },
                 'layers': [{
-                    'id': 'osm',
+                    'id': 'basemap',
                     'type': 'raster',
                     'source': 'osm'
                 }]
             },
+            'gsi-pale': {
+                'version': 8,
+                'glyphs': 'https://fonts.openmaptiles.org/{fontstack}/{range}.pbf',
+                'sources': {
+                    'gsi-pale': {
+                        'type': 'raster',
+                        'tiles': [
+                            'https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png'
+                        ],
+                        'tileSize': 256,
+                        'attribution': '© 国土地理院'
+                    }
+                },
+                'layers': [{
+                    'id': 'basemap',
+                    'type': 'raster',
+                    'source': 'gsi-pale'
+                }]
+            },
+            'gsi-photo': {
+                'version': 8,
+                'glyphs': 'https://fonts.openmaptiles.org/{fontstack}/{range}.pbf',
+                'sources': {
+                    'gsi-photo': {
+                        'type': 'raster',
+                        'tiles': [
+                            'https://cyberjapandata.gsi.go.jp/xyz/seamlessphoto/{z}/{x}/{y}.jpg'
+                        ],
+                        'tileSize': 256,
+                        'attribution': '© 国土地理院'
+                    }
+                },
+                'layers': [{
+                    'id': 'basemap',
+                    'type': 'raster',
+                    'source': 'gsi-photo'
+                }]
+            }
+        };
+        
+        // マップの初期化
+        const map = new maplibregl.Map({
+            container: 'map',
+            style: basemapStyles.osm,
             center: MAEBASHI_CITY_HALL,
             zoom: 15,
             maxZoom: 22
@@ -333,6 +557,7 @@
         let isHeatmapMode = false;
         let isLabelMode = true;
         let fieldStats = null;
+        let currentBasemap = 'osm';
         
         // DOM要素の取得
         const dropOverlay = document.getElementById('dropOverlay');
@@ -341,6 +566,11 @@
         const fileInputClose = document.getElementById('fileInputClose');
         const controls = document.getElementById('controls');
         const controlsClose = document.getElementById('controlsClose');
+        const basemapControls = document.getElementById('basemapControls');
+        const basemapClose = document.getElementById('basemapClose');
+        const basemapSelect = document.getElementById('basemapSelect');
+        const basemapOpacity = document.getElementById('basemapOpacity');
+        const opacityValue = document.getElementById('opacityValue');
         const fieldSelect = document.getElementById('fieldSelect');
         const featureCount = document.getElementById('featureCount');
         const status = document.getElementById('status');
@@ -349,6 +579,8 @@
         const colorLegend = document.getElementById('colorLegend');
         const legendContent = document.getElementById('legendContent');
         const fieldInfo = document.getElementById('fieldInfo');
+        const lineWidth = document.getElementById('lineWidth');
+        const lineWidthValue = document.getElementById('lineWidthValue');
         
         // パネルの最小化/復元機能
         fileInputClose.addEventListener('click', (e) => {
@@ -372,6 +604,19 @@
             if (controls.classList.contains('minimized')) {
                 e.stopPropagation();
                 controls.classList.remove('minimized');
+            }
+        });
+        
+        // 背景地図パネルの最小化/復元機能
+        basemapClose.addEventListener('click', (e) => {
+            e.stopPropagation();
+            basemapControls.classList.add('minimized');
+        });
+        
+        basemapControls.addEventListener('click', (e) => {
+            if (basemapControls.classList.contains('minimized')) {
+                e.stopPropagation();
+                basemapControls.classList.remove('minimized');
             }
         });
         
@@ -443,6 +688,32 @@
             }
         });
         
+        // 背景地図切り替えイベント
+        basemapSelect.addEventListener('change', (e) => {
+            currentBasemap = e.target.value;
+            changeBasemap(currentBasemap);
+        });
+        
+        // 背景地図透明度切り替えイベント
+        basemapOpacity.addEventListener('input', (e) => {
+            const opacity = parseInt(e.target.value) / 100;
+            opacityValue.textContent = e.target.value + '%';
+            
+            if (map.getLayer('basemap')) {
+                map.setPaintProperty('basemap', 'raster-opacity', opacity);
+            }
+        });
+        
+        // ライン幅調整イベント
+        lineWidth.addEventListener('input', (e) => {
+            const width = parseFloat(e.target.value);
+            lineWidthValue.textContent = width.toFixed(1);
+            
+            if (map.getLayer('geojson-line')) {
+                map.setPaintProperty('geojson-line', 'line-width', width);
+            }
+        });
+        
         // ファイル処理関数
         function handleFile(file) {
             if (!file.name.toLowerCase().endsWith('.geojson') && !file.name.toLowerCase().endsWith('.json')) {
@@ -461,6 +732,73 @@
                 }
             };
             reader.readAsText(file);
+        }
+        
+        // 背景地図変更関数
+        function changeBasemap(basemapType) {
+            if (!basemapStyles[basemapType]) {
+                console.error('Unknown basemap type:', basemapType);
+                return;
+            }
+            
+            // 現在のGeoJSONデータを保存
+            const savedGeoJSON = currentGeoJSON;
+            const savedField = currentField;
+            const savedHeatmapMode = isHeatmapMode;
+            const savedLabelMode = isLabelMode;
+            
+            // マップスタイルを変更
+            map.setStyle(basemapStyles[basemapType]);
+            
+            // スタイル変更完了後にGeoJSONレイヤーを再構築
+            map.once('styledata', () => {
+                if (savedGeoJSON) {
+                    // GeoJSONデータを再追加
+                    map.addSource('geojson', {
+                        'type': 'geojson',
+                        'data': savedGeoJSON
+                    });
+                    
+                    // レイヤーを再構築
+                    map.addLayer({
+                        'id': 'geojson-fill',
+                        'type': 'fill',
+                        'source': 'geojson',
+                        'paint': {
+                            'fill-color': '#088',
+                            'fill-opacity': 0.5
+                        }
+                    });
+                    
+                    map.addLayer({
+                        'id': 'geojson-line',
+                        'type': 'line',
+                        'source': 'geojson',
+                        'paint': {
+                            'line-color': '#088',
+                            'line-width': parseFloat(lineWidth.value)
+                        }
+                    });
+                    
+                    // 表示設定を復元
+                    currentField = savedField;
+                    isHeatmapMode = savedHeatmapMode;
+                    isLabelMode = savedLabelMode;
+                    
+                    // フィールド選択を復元
+                    if (currentField) {
+                        fieldSelect.value = currentField;
+                        analyzeField();
+                        updateVisualization();
+                    }
+                }
+                
+                // 背景地図の透明度を適用
+                const opacity = parseInt(basemapOpacity.value) / 100;
+                if (map.getLayer('basemap')) {
+                    map.setPaintProperty('basemap', 'raster-opacity', opacity);
+                }
+            });
         }
         
         // GeoJSON読み込み関数
@@ -497,7 +835,7 @@
                 'source': 'geojson',
                 'paint': {
                     'line-color': '#088',
-                    'line-width': 2
+                    'line-width': parseFloat(lineWidth.value)
                 }
             });
             
@@ -667,30 +1005,124 @@
         function updateHeatmap() {
             if (!currentField || !currentGeoJSON || !fieldStats.isNumeric) return;
             
-            // 数値のみを対象とした色分け表現を作成
-            const colorExpression = [
-                'case',
-                // 数値でない場合はデフォルト色（グレー）
-                ['!=', ['typeof', ['get', currentField]], 'number'],
-                '#cccccc',
-                // 数値の場合は interpolate で色分け
-                [
-                    'interpolate',
-                    ['linear'],
-                    ['to-number', ['get', currentField], fieldStats.min]
-                ]
-            ];
+            // データ範囲に0が含まれるかチェック
+            const includesZero = fieldStats.min <= 0 && fieldStats.max >= 0;
             
-            // 5段階の色分け
-            const steps = 5;
-            for (let i = 0; i <= steps; i++) {
-                const ratio = i / steps;
-                const value = fieldStats.min + (fieldStats.max - fieldStats.min) * ratio;
-                const color = getHeatmapColor(ratio);
-                colorExpression[3].push(value, color);
+            if (includesZero) {
+                // 0基準の色分け（プラス=赤系、マイナス=青系、ゼロ=白）
+                console.log('0基準の色分けを適用:', fieldStats.min, 'から', fieldStats.max);
+                
+                // 色分け表現を直接構築
+                const colorExpression = [
+                    'case',
+                    // 数値でない場合はデフォルト色（グレー）
+                    ['!=', ['typeof', ['get', currentField]], 'number'],
+                    '#cccccc',
+                    // 数値の場合は interpolate で色分け
+                    [
+                        'interpolate',
+                        ['linear'],
+                        ['get', currentField]
+                    ]
+                ];
+                
+                // マイナス側の色分け点を追加
+                if (fieldStats.min < 0) {
+                    colorExpression[3].push(fieldStats.min, 'rgb(0,0,255)'); // 最小値=青
+                    colorExpression[3].push(fieldStats.min * 0.5, 'rgb(128,128,255)'); // 中間=薄い青
+                }
+                
+                // ゼロ点を追加
+                colorExpression[3].push(0, 'rgb(255,255,255)'); // ゼロ=白
+                
+                // プラス側の色分け点を追加
+                if (fieldStats.max > 0) {
+                    colorExpression[3].push(fieldStats.max * 0.5, 'rgb(255,128,128)'); // 中間=薄い赤
+                    colorExpression[3].push(fieldStats.max, 'rgb(255,0,0)'); // 最大値=赤
+                }
+                
+                console.log('色分け表現:', colorExpression);
+                map.setPaintProperty('geojson-fill', 'fill-color', colorExpression);
+                
+            } else {
+                // 0を含まない場合：従来の最大最小基準
+                console.log('従来の色分けを適用:', fieldStats.min, 'から', fieldStats.max);
+                
+                const colorExpression = [
+                    'case',
+                    // 数値でない場合はデフォルト色（グレー）
+                    ['!=', ['typeof', ['get', currentField]], 'number'],
+                    '#cccccc',
+                    // 数値の場合は interpolate で色分け
+                    [
+                        'interpolate',
+                        ['linear'],
+                        ['get', currentField]
+                    ]
+                ];
+                
+                // 5段階の色分け
+                const steps = 5;
+                for (let i = 0; i <= steps; i++) {
+                    const ratio = i / steps;
+                    const value = fieldStats.min + (fieldStats.max - fieldStats.min) * ratio;
+                    const color = getHeatmapColor(ratio);
+                    colorExpression[3].push(value, color);
+                }
+                
+                map.setPaintProperty('geojson-fill', 'fill-color', colorExpression);
+            }
+        }
+        
+        // 0基準のヒートマップ色取得関数
+        function getZeroBasedHeatmapColor(value, positiveMax, negativeMin) {
+            // 0付近は白色で表示
+            if (Math.abs(value) <= 0.1) {
+                return 'rgb(255,255,255)'; // 白
             }
             
-            map.setPaintProperty('geojson-fill', 'fill-color', colorExpression);
+            if (value > 0 && positiveMax > 0) {
+                // プラス側：白→赤系のグラデーション
+                const intensity = Math.min(value / positiveMax, 1.0);
+                
+                if (intensity <= 0.5) {
+                    // 白 → 薄いピンク
+                    const factor = intensity * 2;
+                    const red = 255;
+                    const green = Math.round(255 * (1 - factor * 0.3));
+                    const blue = Math.round(255 * (1 - factor * 0.3));
+                    return `rgb(${red},${green},${blue})`;
+                } else {
+                    // 薄いピンク → 濃い赤
+                    const factor = (intensity - 0.5) * 2;
+                    const red = 255;
+                    const green = Math.round(180 * (1 - factor));
+                    const blue = Math.round(180 * (1 - factor));
+                    return `rgb(${red},${green},${blue})`;
+                }
+            } else if (value < 0 && negativeMin < 0) {
+                // マイナス側：白→青系のグラデーション
+                const intensity = Math.min(Math.abs(value / negativeMin), 1.0);
+                
+                if (intensity <= 0.5) {
+                    // 白 → 薄い水色
+                    const factor = intensity * 2;
+                    const red = Math.round(255 * (1 - factor * 0.3));
+                    const green = Math.round(255 * (1 - factor * 0.1));
+                    const blue = 255;
+                    return `rgb(${red},${green},${blue})`;
+                } else {
+                    // 薄い水色 → 濃い青
+                    const factor = (intensity - 0.5) * 2;
+                    const red = Math.round(180 * (1 - factor));
+                    const green = Math.round(230 * (1 - factor));
+                    const blue = 255;
+                    return `rgb(${red},${green},${blue})`;
+                }
+            } else {
+                // フォールバック
+                return 'rgb(255,255,255)'; // 白
+            }
         }
         
         // ヒートマップ色取得関数
@@ -773,27 +1205,119 @@
                 legendContent.appendChild(nonNumericItem);
             }
             
-            const steps = 5;
-            // 最高値から最小値の順で表示（逆順）
-            for (let i = steps; i >= 0; i--) {
-                const ratio = i / steps;
-                const value = fieldStats.min + (fieldStats.max - fieldStats.min) * ratio;
-                const color = getHeatmapColor(ratio);
+            // データ範囲に0が含まれるかチェック
+            const includesZero = fieldStats.min <= 0 && fieldStats.max >= 0;
+            
+            if (includesZero) {
+                // 0基準の凡例（シンプルに5段階で表示）
                 
-                const legendItem = document.createElement('div');
-                legendItem.className = 'legend-item';
+                // プラス側最大値
+                if (fieldStats.max > 0) {
+                    const legendItem1 = document.createElement('div');
+                    legendItem1.className = 'legend-item';
+                    
+                    const colorBox1 = document.createElement('div');
+                    colorBox1.className = 'legend-color';
+                    colorBox1.style.backgroundColor = 'rgb(255,0,0)';
+                    
+                    const label1 = document.createElement('span');
+                    label1.textContent = fieldStats.isInteger ? fieldStats.max.toString() : fieldStats.max.toFixed(2);
+                    
+                    legendItem1.appendChild(colorBox1);
+                    legendItem1.appendChild(label1);
+                    legendContent.appendChild(legendItem1);
+                    
+                    // プラス側中間値
+                    const legendItem2 = document.createElement('div');
+                    legendItem2.className = 'legend-item';
+                    
+                    const colorBox2 = document.createElement('div');
+                    colorBox2.className = 'legend-color';
+                    colorBox2.style.backgroundColor = 'rgb(255,128,128)';
+                    
+                    const label2 = document.createElement('span');
+                    const midPositive = fieldStats.max * 0.5;
+                    label2.textContent = fieldStats.isInteger ? Math.round(midPositive).toString() : midPositive.toFixed(2);
+                    
+                    legendItem2.appendChild(colorBox2);
+                    legendItem2.appendChild(label2);
+                    legendContent.appendChild(legendItem2);
+                }
                 
-                const colorBox = document.createElement('div');
-                colorBox.className = 'legend-color';
-                colorBox.style.backgroundColor = color;
+                // ゼロ値
+                const zeroItem = document.createElement('div');
+                zeroItem.className = 'legend-item';
                 
-                const label = document.createElement('span');
-                // 整数の場合は小数点なし、小数の場合は2桁まで表示
-                label.textContent = fieldStats.isInteger ? Math.round(value).toString() : value.toFixed(2);
+                const zeroColorBox = document.createElement('div');
+                zeroColorBox.className = 'legend-color';
+                zeroColorBox.style.backgroundColor = 'rgb(255,255,255)';
+                zeroColorBox.style.border = '1px solid #999';
                 
-                legendItem.appendChild(colorBox);
-                legendItem.appendChild(label);
-                legendContent.appendChild(legendItem);
+                const zeroLabel = document.createElement('span');
+                zeroLabel.textContent = '0';
+                
+                zeroItem.appendChild(zeroColorBox);
+                zeroItem.appendChild(zeroLabel);
+                legendContent.appendChild(zeroItem);
+                
+                // マイナス側
+                if (fieldStats.min < 0) {
+                    // マイナス側中間値
+                    const legendItem3 = document.createElement('div');
+                    legendItem3.className = 'legend-item';
+                    
+                    const colorBox3 = document.createElement('div');
+                    colorBox3.className = 'legend-color';
+                    colorBox3.style.backgroundColor = 'rgb(128,128,255)';
+                    
+                    const label3 = document.createElement('span');
+                    const midNegative = fieldStats.min * 0.5;
+                    label3.textContent = fieldStats.isInteger ? Math.round(midNegative).toString() : midNegative.toFixed(2);
+                    
+                    legendItem3.appendChild(colorBox3);
+                    legendItem3.appendChild(label3);
+                    legendContent.appendChild(legendItem3);
+                    
+                    // マイナス側最小値
+                    const legendItem4 = document.createElement('div');
+                    legendItem4.className = 'legend-item';
+                    
+                    const colorBox4 = document.createElement('div');
+                    colorBox4.className = 'legend-color';
+                    colorBox4.style.backgroundColor = 'rgb(0,0,255)';
+                    
+                    const label4 = document.createElement('span');
+                    label4.textContent = fieldStats.isInteger ? fieldStats.min.toString() : fieldStats.min.toFixed(2);
+                    
+                    legendItem4.appendChild(colorBox4);
+                    legendItem4.appendChild(label4);
+                    legendContent.appendChild(legendItem4);
+                }
+                
+            } else {
+                // 0を含まない場合：従来の最大最小基準凡例
+                const steps = 5;
+                // 最高値から最小値の順で表示（逆順）
+                for (let i = steps; i >= 0; i--) {
+                    const ratio = i / steps;
+                    const value = fieldStats.min + (fieldStats.max - fieldStats.min) * ratio;
+                    const color = getHeatmapColor(ratio);
+                    
+                    const legendItem = document.createElement('div');
+                    legendItem.className = 'legend-item';
+                    
+                    const colorBox = document.createElement('div');
+                    colorBox.className = 'legend-color';
+                    colorBox.style.backgroundColor = color;
+                    
+                    const label = document.createElement('span');
+                    // 整数の場合は小数点なし、小数の場合は2桁まで表示
+                    label.textContent = fieldStats.isInteger ? Math.round(value).toString() : value.toFixed(2);
+                    
+                    legendItem.appendChild(colorBox);
+                    legendItem.appendChild(label);
+                    legendContent.appendChild(legendItem);
+                }
             }
         }
         
