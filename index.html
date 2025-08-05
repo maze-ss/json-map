@@ -6,6 +6,8 @@
     <title>GeoJSON - Heatmap</title>
     <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
     <link href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet" />
+    <!-- GeoTIFF解析用ライブラリ -->
+    <script src="https://cdn.jsdelivr.net/npm/geotiff@2.1.1/dist-browser/geotiff.js"></script>
     <style>
         body {
             margin: 0;
@@ -52,13 +54,13 @@
         
         .controls {
             position: absolute;
-            top: 10px;
-            right: 10px;
+            top: 80px;
+            left: 10px;
             z-index: 1000;
             background: rgba(255, 255, 255, 0.9);
             border-radius: 8px;
             padding: 15px;
-            width: 240px;
+            width: 280px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
         
@@ -80,13 +82,14 @@
         }
         
         .controls.minimized .minimized-text {
-            display: block;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             font-size: 12px;
             color: white;
-            text-align: center;
-            line-height: 1;
             font-weight: bold;
             width: 100%;
+            height: 100%;
         }
         
         .controls.minimized .panel-header {
@@ -108,6 +111,7 @@
             border-radius: 8px;
             padding: 15px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            width: 280px;
         }
         
         .file-input-container.minimized {
@@ -128,13 +132,14 @@
         }
         
         .file-input-container.minimized .minimized-text {
-            display: block;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             font-size: 12px;
             color: white;
-            text-align: center;
-            line-height: 1;
             font-weight: bold;
             width: 100%;
+            height: 100%;
         }
         
         .file-input-container.minimized .panel-header {
@@ -288,13 +293,14 @@
         }
         
         .basemap-controls.minimized .minimized-text {
-            display: block;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             font-size: 12px;
             color: white;
-            text-align: center;
-            line-height: 1;
             font-weight: bold;
             width: 100%;
+            height: 100%;
         }
         
         .basemap-controls.minimized .panel-header {
@@ -377,6 +383,133 @@
             min-width: 30px;
             text-align: right;
         }
+        
+        .geotiff-controls {
+            position: absolute;
+            top: 160px;
+            left: 10px;
+            z-index: 1000;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 8px;
+            padding: 15px;
+            width: 280px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .geotiff-controls.minimized {
+            width: 50px;
+            height: 50px;
+            padding: 0;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #008B8B;
+            border-radius: 50%;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+        
+        .geotiff-controls.minimized .geotiff-content {
+            display: none;
+        }
+        
+        .geotiff-controls.minimized .minimized-text {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            color: white;
+            font-weight: bold;
+            width: 100%;
+            height: 100%;
+        }
+        
+        .geotiff-controls.minimized .panel-header {
+            display: none;
+        }
+        
+        .geotiff-controls h4 {
+            margin: 0 0 10px 0;
+            font-size: 14px;
+            color: #333;
+        }
+        
+        .geotiff-file-input {
+            margin-bottom: 10px;
+        }
+        
+        .geotiff-file-input input[type="file"] {
+            width: 100%;
+            font-size: 12px;
+        }
+        
+        .geotiff-opacity {
+            margin-bottom: 10px;
+            font-size: 12px;
+        }
+        
+        .geotiff-opacity label {
+            display: block;
+            margin-bottom: 3px;
+        }
+        
+        .geotiff-opacity-controls {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .geotiff-opacity input[type="range"] {
+            flex: 1;
+            margin: 0;
+        }
+        
+        .geotiff-opacity-value {
+            font-size: 11px;
+            color: #666;
+            min-width: 35px;
+            text-align: right;
+        }
+        
+        .geotiff-status {
+            font-size: 11px;
+            padding: 5px;
+            border-radius: 4px;
+            margin-top: 10px;
+        }
+        
+        .geotiff-status.success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .geotiff-status.error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .geotiff-status.info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        
+        .geotiff-remove-btn {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 11px;
+            margin-top: 5px;
+        }
+        
+        .geotiff-remove-btn:hover {
+            background: #c82333;
+        }
     </style>
 </head>
 <body>
@@ -385,9 +518,10 @@
     <!-- ドラッグ&ドロップ用のオーバーレイ -->
     <div class="drop-overlay" id="dropOverlay">
         <div class="drop-message">
-            <div>GeoJSONファイルをここにドロップ</div>
+            <div>ファイルをここにドロップ</div>
             <div style="font-size: 14px; margin-top: 10px; font-weight: normal;">
-                (.geojson または .json ファイル)
+                GeoJSON: .geojson, .json<br>
+                GeoTIFF: .tif, .tiff
             </div>
         </div>
     </div>
@@ -404,7 +538,7 @@
         <div class="minimized-text">選択</div>
     </div>
     
-    <div class="controls" id="controls" style="display: none;">
+    <div class="controls minimized" id="controls" style="display: none;">
         <div class="panel-header">
             <h4>表示設定</h4>
             <button class="close-button" id="controlsClose" title="最小化">×</button>
@@ -447,7 +581,7 @@
     </div>
 
     <!-- 背景地図コントロール -->
-    <div class="basemap-controls" id="basemapControls">
+    <div class="basemap-controls minimized" id="basemapControls">
         <div class="panel-header">
             <h4>背景地図</h4>
             <button class="close-button" id="basemapClose" title="最小化">×</button>
@@ -470,6 +604,29 @@
             </div>
         </div>
         <div class="minimized-text">背景</div>
+    </div>
+
+    <!-- GeoTIFFコントロール -->
+    <div class="geotiff-controls minimized" id="geotiffControls">
+        <div class="panel-header">
+            <h4>GeoTIFF</h4>
+            <button class="close-button" id="geotiffClose" title="最小化">×</button>
+        </div>
+        <div class="geotiff-content">
+            <div class="geotiff-file-input">
+                <input type="file" id="geotiffInput" accept=".tif,.tiff" title="GeoTIFFファイルを選択">
+            </div>
+            <div class="geotiff-opacity">
+                <label for="geotiffOpacity">透明度:</label>
+                <div class="geotiff-opacity-controls">
+                    <input type="range" id="geotiffOpacity" min="0" max="100" value="70" step="1">
+                    <div class="geotiff-opacity-value" id="geotiffOpacityValue">70%</div>
+                </div>
+            </div>
+            <div id="geotiffStatus" class="geotiff-status" style="display: none;"></div>
+            <button id="geotiffRemove" class="geotiff-remove-btn" style="display: none;">GeoTIFF削除</button>
+        </div>
+        <div class="minimized-text">TIFF</div>
     </div>
 
     <script>
@@ -558,6 +715,8 @@
         let isLabelMode = true;
         let fieldStats = null;
         let currentBasemap = 'osm';
+        let currentGeoTIFF = null;
+        let geotiffCanvas = null;
         
         // DOM要素の取得
         const dropOverlay = document.getElementById('dropOverlay');
@@ -582,28 +741,41 @@
         const lineWidth = document.getElementById('lineWidth');
         const lineWidthValue = document.getElementById('lineWidthValue');
         
+        // GeoTIFF関連のDOM要素
+        const geotiffControls = document.getElementById('geotiffControls');
+        const geotiffClose = document.getElementById('geotiffClose');
+        const geotiffInput = document.getElementById('geotiffInput');
+        const geotiffOpacity = document.getElementById('geotiffOpacity');
+        const geotiffOpacityValue = document.getElementById('geotiffOpacityValue');
+        const geotiffStatus = document.getElementById('geotiffStatus');
+        const geotiffRemove = document.getElementById('geotiffRemove');
+        
         // パネルの最小化/復元機能
         fileInputClose.addEventListener('click', (e) => {
             e.stopPropagation();
             fileInputContainer.classList.add('minimized');
+            setTimeout(adjustPanelPositions, 100);
         });
         
         fileInputContainer.addEventListener('click', (e) => {
             if (fileInputContainer.classList.contains('minimized')) {
                 e.stopPropagation();
                 fileInputContainer.classList.remove('minimized');
+                setTimeout(adjustPanelPositions, 100);
             }
         });
         
         controlsClose.addEventListener('click', (e) => {
             e.stopPropagation();
             controls.classList.add('minimized');
+            setTimeout(adjustPanelPositions, 100);
         });
         
         controls.addEventListener('click', (e) => {
             if (controls.classList.contains('minimized')) {
                 e.stopPropagation();
                 controls.classList.remove('minimized');
+                setTimeout(adjustPanelPositions, 100);
             }
         });
         
@@ -617,6 +789,21 @@
             if (basemapControls.classList.contains('minimized')) {
                 e.stopPropagation();
                 basemapControls.classList.remove('minimized');
+            }
+        });
+        
+        // GeoTIFFパネルの最小化/復元機能
+        geotiffClose.addEventListener('click', (e) => {
+            e.stopPropagation();
+            geotiffControls.classList.add('minimized');
+            setTimeout(adjustPanelPositions, 100);
+        });
+        
+        geotiffControls.addEventListener('click', (e) => {
+            if (geotiffControls.classList.contains('minimized')) {
+                e.stopPropagation();
+                geotiffControls.classList.remove('minimized');
+                setTimeout(adjustPanelPositions, 100);
             }
         });
         
@@ -650,7 +837,12 @@
             
             const files = e.dataTransfer.files;
             if (files.length > 0) {
-                handleFile(files[0]);
+                const file = files[0];
+                if (file.name.toLowerCase().endsWith('.tif') || file.name.toLowerCase().endsWith('.tiff')) {
+                    handleGeoTIFFFile(file);
+                } else {
+                    handleFile(file);
+                }
             }
         });
         
@@ -714,6 +906,28 @@
             }
         });
         
+        // GeoTIFFファイル選択イベント
+        geotiffInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleGeoTIFFFile(e.target.files[0]);
+            }
+        });
+        
+        // GeoTIFF透明度調整イベント
+        geotiffOpacity.addEventListener('input', (e) => {
+            const opacity = parseInt(e.target.value) / 100;
+            geotiffOpacityValue.textContent = e.target.value + '%';
+            
+            if (map.getSource('geotiff')) {
+                map.setPaintProperty('geotiff-layer', 'raster-opacity', opacity);
+            }
+        });
+        
+        // GeoTIFF削除イベント
+        geotiffRemove.addEventListener('click', () => {
+            removeGeoTIFF();
+        });
+        
         // ファイル処理関数
         function handleFile(file) {
             if (!file.name.toLowerCase().endsWith('.geojson') && !file.name.toLowerCase().endsWith('.json')) {
@@ -732,6 +946,236 @@
                 }
             };
             reader.readAsText(file);
+        }
+        
+        // GeoTIFFファイル処理関数
+        function handleGeoTIFFFile(file) {
+            if (!file.name.toLowerCase().endsWith('.tif') && !file.name.toLowerCase().endsWith('.tiff')) {
+                showGeoTIFFStatus('GeoTIFFファイル（.tif または .tiff）を選択してください', 'error');
+                return;
+            }
+            
+            showGeoTIFFStatus('GeoTIFFファイルを読み込み中...', 'info');
+            
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                try {
+                    const arrayBuffer = e.target.result;
+                    await loadGeoTIFF(arrayBuffer);
+                    showGeoTIFFStatus('GeoTIFFファイルが正常に読み込まれました', 'success');
+                } catch (error) {
+                    console.error('GeoTIFF読み込みエラー:', error);
+                    showGeoTIFFStatus('GeoTIFFファイルの読み込みエラー: ' + error.message, 'error');
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+        
+        // GeoTIFF読み込み関数
+        async function loadGeoTIFF(arrayBuffer) {
+            try {
+                // 既存のGeoTIFFレイヤーを削除
+                removeGeoTIFF();
+                
+                // ファイルサイズをチェック
+                const fileSizeMB = arrayBuffer.byteLength / (1024 * 1024);
+                console.log(`GeoTIFFファイルサイズ: ${fileSizeMB.toFixed(2)} MB`);
+                
+                if (fileSizeMB > 50) {
+                    throw new Error(`ファイルサイズが大きすぎます (${fileSizeMB.toFixed(1)}MB)。50MB以下のファイルを使用してください。`);
+                }
+                
+                // GeoTIFFを解析
+                const tiff = await GeoTIFF.fromArrayBuffer(arrayBuffer);
+                const image = await tiff.getImage();
+                
+                // 画像サイズを取得
+                const width = image.getWidth();
+                const height = image.getHeight();
+                const pixelCount = width * height;
+                
+                console.log(`画像サイズ: ${width}x${height} (${(pixelCount / 1000000).toFixed(1)}M pixels)`);
+                
+                // 大きすぎる画像をチェック
+                if (pixelCount > 10000000) { // 10M pixels
+                    throw new Error(`画像サイズが大きすぎます (${width}x${height})。より小さな解像度の画像を使用してください。`);
+                }
+                
+                // 地理情報を取得
+                const bbox = image.getBoundingBox();
+                
+                // リサンプリングサイズを決定（最大2048x2048）
+                const maxSize = 2048;
+                let displayWidth = width;
+                let displayHeight = height;
+                
+                if (width > maxSize || height > maxSize) {
+                    const scale = Math.min(maxSize / width, maxSize / height);
+                    displayWidth = Math.floor(width * scale);
+                    displayHeight = Math.floor(height * scale);
+                    console.log(`リサンプリング: ${width}x${height} → ${displayWidth}x${displayHeight}`);
+                }
+                
+                // ラスターデータを読み込み（リサンプリング）
+                const rasters = await image.readRasters({
+                    width: displayWidth,
+                    height: displayHeight,
+                    resampleMethod: 'bilinear'
+                });
+                
+                // Canvasを作成
+                const canvas = document.createElement('canvas');
+                canvas.width = displayWidth;
+                canvas.height = displayHeight;
+                const ctx = canvas.getContext('2d');
+                
+                // ImageDataを作成
+                const imageData = ctx.createImageData(displayWidth, displayHeight);
+                const data = imageData.data;
+                
+                // RGBまたは単一バンドの処理
+                const chunkSize = 10000;
+                
+                if (rasters.length >= 3) {
+                    // RGBデータの場合
+                    const redBand = rasters[0];
+                    const greenBand = rasters[1];
+                    const blueBand = rasters[2];
+                    
+                    for (let i = 0; i < redBand.length; i += chunkSize) {
+                        const endIndex = Math.min(i + chunkSize, redBand.length);
+                        
+                        for (let j = i; j < endIndex; j++) {
+                            const pixelIndex = j * 4;
+                            
+                            // RGBデータをそのまま使用
+                            data[pixelIndex] = redBand[j] || 0;     // R
+                            data[pixelIndex + 1] = greenBand[j] || 0; // G
+                            data[pixelIndex + 2] = blueBand[j] || 0;  // B
+                            data[pixelIndex + 3] = 255;              // A
+                        }
+                        
+                        // UIをブロックしないように少し待機
+                        if (i % (chunkSize * 5) === 0) {
+                            showGeoTIFFStatus(`処理中... ${Math.round((i / redBand.length) * 100)}%`, 'info');
+                            await new Promise(resolve => setTimeout(resolve, 1));
+                        }
+                    }
+                } else {
+                    // 単一バンドの場合はグレースケール
+                    const raster = rasters[0];
+                    
+                    for (let i = 0; i < raster.length; i += chunkSize) {
+                        const endIndex = Math.min(i + chunkSize, raster.length);
+                        
+                        for (let j = i; j < endIndex; j++) {
+                            const value = raster[j];
+                            const pixelIndex = j * 4;
+                            
+                            if (value !== null && value !== undefined && !isNaN(value)) {
+                                // 値をグレースケール（0-255）に正規化
+                                const gray = Math.max(0, Math.min(255, value));
+                                data[pixelIndex] = gray;     // R
+                                data[pixelIndex + 1] = gray; // G
+                                data[pixelIndex + 2] = gray; // B
+                                data[pixelIndex + 3] = 255;  // A
+                            } else {
+                                // 無効な値は透明にする
+                                data[pixelIndex] = 0;
+                                data[pixelIndex + 1] = 0;
+                                data[pixelIndex + 2] = 0;
+                                data[pixelIndex + 3] = 0;
+                            }
+                        }
+                        
+                        // UIをブロックしないように少し待機
+                        if (i % (chunkSize * 5) === 0) {
+                            showGeoTIFFStatus(`処理中... ${Math.round((i / raster.length) * 100)}%`, 'info');
+                            await new Promise(resolve => setTimeout(resolve, 1));
+                        }
+                    }
+                }
+                
+                ctx.putImageData(imageData, 0, 0);
+                geotiffCanvas = canvas;
+                
+                // MapLibre GLにソースとして追加
+                map.addSource('geotiff', {
+                    type: 'canvas',
+                    canvas: canvas,
+                    coordinates: [
+                        [bbox[0], bbox[3]], // 左上
+                        [bbox[2], bbox[3]], // 右上
+                        [bbox[2], bbox[1]], // 右下
+                        [bbox[0], bbox[1]]  // 左下
+                    ]
+                });
+                
+                // レイヤーを追加（GeoJSONレイヤーの下に配置）
+                const beforeLayer = map.getLayer('geojson-fill') ? 'geojson-fill' : undefined;
+                map.addLayer({
+                    id: 'geotiff-layer',
+                    type: 'raster',
+                    source: 'geotiff',
+                    paint: {
+                        'raster-opacity': parseInt(geotiffOpacity.value) / 100
+                    }
+                }, beforeLayer);
+                
+                currentGeoTIFF = { tiff, image, bbox };
+                geotiffRemove.style.display = 'block';
+                
+                // GeoTIFFコントロールパネルを展開
+                geotiffControls.classList.remove('minimized');
+                setTimeout(adjustPanelPositions, 100);
+                
+                console.log('GeoTIFF読み込み完了:', {
+                    originalSize: `${width}x${height}`,
+                    displaySize: `${displayWidth}x${displayHeight}`,
+                    bbox: bbox,
+                    bands: rasters.length
+                });
+                
+            } catch (error) {
+                console.error('GeoTIFF処理エラー:', error);
+                throw error;
+            }
+        }
+        
+        // GeoTIFFをCanvasに描画する関数
+        // GeoTIFF削除関数
+        function removeGeoTIFF() {
+            if (map.getLayer('geotiff-layer')) {
+                map.removeLayer('geotiff-layer');
+            }
+            if (map.getSource('geotiff')) {
+                map.removeSource('geotiff');
+            }
+            
+            currentGeoTIFF = null;
+            geotiffCanvas = null;
+            geotiffRemove.style.display = 'none';
+            geotiffStatus.style.display = 'none';
+            geotiffInput.value = '';
+            
+            // GeoTIFFコントロールパネルを最小化
+            geotiffControls.classList.add('minimized');
+            setTimeout(adjustPanelPositions, 100);
+        }
+        
+        // GeoTIFFステータス表示関数
+        function showGeoTIFFStatus(message, type) {
+            geotiffStatus.textContent = message;
+            geotiffStatus.className = `geotiff-status ${type}`;
+            geotiffStatus.style.display = 'block';
+            
+            if (type === 'success') {
+                setTimeout(() => {
+                    geotiffStatus.style.display = 'none';
+                }, 3000);
+            } else if (type === 'info') {
+                // info メッセージは手動で消すか、次のメッセージまで表示
+            }
         }
         
         // 背景地図変更関数
@@ -793,6 +1237,30 @@
                     }
                 }
                 
+                // GeoTIFFレイヤーを再構築
+                if (currentGeoTIFF && geotiffCanvas) {
+                    map.addSource('geotiff', {
+                        type: 'canvas',
+                        canvas: geotiffCanvas,
+                        coordinates: [
+                            [currentGeoTIFF.bbox[0], currentGeoTIFF.bbox[3]], // 左上
+                            [currentGeoTIFF.bbox[2], currentGeoTIFF.bbox[3]], // 右上
+                            [currentGeoTIFF.bbox[2], currentGeoTIFF.bbox[1]], // 右下
+                            [currentGeoTIFF.bbox[0], currentGeoTIFF.bbox[1]]  // 左下
+                        ]
+                    });
+                    
+                    const beforeLayer = map.getLayer('geojson-fill') ? 'geojson-fill' : undefined;
+                    map.addLayer({
+                        id: 'geotiff-layer',
+                        type: 'raster',
+                        source: 'geotiff',
+                        paint: {
+                            'raster-opacity': parseInt(geotiffOpacity.value) / 100
+                        }
+                    }, beforeLayer);
+                }
+                
                 // 背景地図の透明度を適用
                 const opacity = parseInt(basemapOpacity.value) / 100;
                 if (map.getLayer('basemap')) {
@@ -849,8 +1317,11 @@
             // マップを GeoJSON の範囲に合わせる
             fitMapToGeoJSON(geoJSON);
             
-            // コントロールパネルを表示
+            // コントロールパネルを表示・展開、GeoJSON選択パネルを最小化
             controls.style.display = 'block';
+            controls.classList.remove('minimized');
+            fileInputContainer.classList.add('minimized');
+            setTimeout(adjustPanelPositions, 100);
         }
         
         // フィールド選択肢更新関数
@@ -1425,8 +1896,45 @@
             map.getCanvas().style.cursor = '';
         });
         
+        // パネル位置調整関数
+        function adjustPanelPositions() {
+            let currentTop = 10;
+            
+            // GeoJSON選択パネル
+            if (!fileInputContainer.classList.contains('minimized')) {
+                fileInputContainer.style.top = currentTop + 'px';
+                currentTop += fileInputContainer.offsetHeight + 10;
+            } else {
+                fileInputContainer.style.top = currentTop + 'px';
+                currentTop += 60; // 最小化時の高さ + マージン
+            }
+            
+            // 表示設定パネル
+            if (controls.style.display !== 'none') {
+                if (!controls.classList.contains('minimized')) {
+                    controls.style.top = currentTop + 'px';
+                    currentTop += controls.offsetHeight + 10;
+                } else {
+                    controls.style.top = currentTop + 'px';
+                    currentTop += 60; // 最小化時の高さ + マージン
+                }
+            }
+            
+            // GeoTIFFパネル
+            if (!geotiffControls.classList.contains('minimized')) {
+                geotiffControls.style.top = currentTop + 'px';
+                currentTop += geotiffControls.offsetHeight + 10;
+            } else {
+                geotiffControls.style.top = currentTop + 'px';
+                currentTop += 60; // 最小化時の高さ + マージン
+            }
+        }
+        
         console.log('GeoJSON Map Viewer が初期化されました');
         console.log('前橋市役所を中心とした地図が表示されています');
+        
+        // 初期パネル位置を調整
+        setTimeout(adjustPanelPositions, 100);
     </script>
 </body>
 </html>
