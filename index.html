@@ -510,6 +510,112 @@
         .geotiff-remove-btn:hover {
             background: #c82333;
         }
+        
+        /* 計測コントロール */
+        .measure-controls {
+            position: absolute;
+            top: 240px;
+            left: 10px;
+            z-index: 1000;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 8px;
+            padding: 15px;
+            width: 250px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .measure-controls.minimized {
+            width: 50px;
+            height: 50px;
+            padding: 0;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #ff6b35;
+            border-radius: 50%;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+        
+        .measure-controls.minimized .measure-content {
+            display: none;
+        }
+        
+        .measure-controls.minimized .minimized-text {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            color: white;
+            font-weight: bold;
+            width: 100%;
+            height: 100%;
+        }
+        
+        .measure-controls.minimized .panel-header {
+            display: none;
+        }
+        
+        .measure-controls h4 {
+            margin: 0;
+            color: #333;
+            font-size: 14px;
+        }
+        
+        .measure-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .measure-btn {
+            background: #ff6b35;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: background 0.3s;
+        }
+        
+        .measure-btn:hover {
+            background: #e55a2b;
+        }
+        
+        .measure-btn.active {
+            background: #c94a21;
+        }
+        
+        .measure-result {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 8px;
+            font-size: 12px;
+            margin-top: 10px;
+            min-height: 20px;
+        }
+        
+        .measure-clear {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 11px;
+            margin-top: 5px;
+        }
+        
+        .measure-clear:hover {
+            background: #c82333;
+        }
+        
+        .minimized-text {
+            display: none;
+        }
     </style>
 </head>
 <body>
@@ -629,6 +735,23 @@
         <div class="minimized-text">TIFF</div>
     </div>
 
+    <!-- 計測コントロール -->
+    <div class="measure-controls minimized" id="measureControls">
+        <div class="panel-header">
+            <h4>計測ツール</h4>
+            <button class="close-button" id="measureClose" title="最小化">×</button>
+        </div>
+        <div class="measure-content">
+            <div class="measure-buttons">
+                <button class="measure-btn" id="measureDistance">距離計測</button>
+                <button class="measure-btn" id="measureArea">面積計測</button>
+            </div>
+            <div id="measureResult" class="measure-result"></div>
+            <button id="measureClear" class="measure-clear">計測をクリア</button>
+        </div>
+        <div class="minimized-text">計測</div>
+    </div>
+
     <script>
         // 前橋市役所の座標 (緯度: 36.389494, 経度: 139.063437)
         const MAEBASHI_CITY_HALL = [139.063437, 36.389494];
@@ -703,6 +826,19 @@
             maxZoom: 22
         });
         
+        // 標準コントロールを追加
+        map.addControl(new maplibregl.NavigationControl(), 'top-right');
+        
+        // 現在位置取得コントロールを追加
+        map.addControl(new maplibregl.GeolocateControl({
+            positionOptions: {
+                enableHighAccuracy: true  // 高精度位置情報を使用
+            },
+            trackUserLocation: true,      // ユーザーの位置を追跡
+            showUserHeading: true,        // ユーザーの向きを表示
+            showAccuracyCircle: true      // 精度円を表示
+        }), 'top-right');
+        
         // 前橋市役所にマーカーを追加
         new maplibregl.Marker({ color: '#ff0000' })
             .setLngLat(MAEBASHI_CITY_HALL)
@@ -717,6 +853,13 @@
         let currentBasemap = 'osm';
         let currentGeoTIFF = null;
         let geotiffCanvas = null;
+        
+        // 計測関連変数
+        let measureMode = null; // 'distance', 'area', null
+        let measurePoints = [];
+        let measureMarkers = [];
+        let measureLines = [];
+        let measurePolygons = [];
         
         // DOM要素の取得
         const dropOverlay = document.getElementById('dropOverlay');
@@ -749,6 +892,14 @@
         const geotiffOpacityValue = document.getElementById('geotiffOpacityValue');
         const geotiffStatus = document.getElementById('geotiffStatus');
         const geotiffRemove = document.getElementById('geotiffRemove');
+        
+        // 計測関連のDOM要素
+        const measureControls = document.getElementById('measureControls');
+        const measureClose = document.getElementById('measureClose');
+        const measureDistance = document.getElementById('measureDistance');
+        const measureArea = document.getElementById('measureArea');
+        const measureResult = document.getElementById('measureResult');
+        const measureClear = document.getElementById('measureClear');
         
         // パネルの最小化/復元機能
         fileInputClose.addEventListener('click', (e) => {
@@ -803,6 +954,21 @@
             if (geotiffControls.classList.contains('minimized')) {
                 e.stopPropagation();
                 geotiffControls.classList.remove('minimized');
+                setTimeout(adjustPanelPositions, 100);
+            }
+        });
+        
+        // 計測パネルの最小化/復元機能
+        measureClose.addEventListener('click', (e) => {
+            e.stopPropagation();
+            measureControls.classList.add('minimized');
+            setTimeout(adjustPanelPositions, 100);
+        });
+        
+        measureControls.addEventListener('click', (e) => {
+            if (measureControls.classList.contains('minimized')) {
+                e.stopPropagation();
+                measureControls.classList.remove('minimized');
                 setTimeout(adjustPanelPositions, 100);
             }
         });
@@ -926,6 +1092,26 @@
         // GeoTIFF削除イベント
         geotiffRemove.addEventListener('click', () => {
             removeGeoTIFF();
+        });
+        
+        // 計測機能イベント
+        measureDistance.addEventListener('click', () => {
+            startMeasure('distance');
+        });
+        
+        measureArea.addEventListener('click', () => {
+            startMeasure('area');
+        });
+        
+        measureClear.addEventListener('click', () => {
+            clearMeasurements();
+        });
+        
+        // ESCキーで計測終了
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && measureMode) {
+                clearMeasurements();
+            }
         });
         
         // ファイル処理関数
@@ -1928,10 +2114,283 @@
                 geotiffControls.style.top = currentTop + 'px';
                 currentTop += 60; // 最小化時の高さ + マージン
             }
+            
+            // 計測パネル（GeoTIFFパネルの下に配置）
+            if (!measureControls.classList.contains('minimized')) {
+                measureControls.style.top = currentTop + 'px';
+                currentTop += measureControls.offsetHeight + 10;
+            } else {
+                measureControls.style.top = currentTop + 'px';
+                currentTop += 60; // 最小化時の高さ + マージン
+            }
+            
+            // ベースマップパネル（左下に固定）
+            basemapControls.style.bottom = '10px';
+            basemapControls.style.top = 'auto';
+            basemapControls.style.left = '10px';
         }
         
-        console.log('GeoJSON Map Viewer が初期化されました');
-        console.log('前橋市役所を中心とした地図が表示されています');
+        // 計測開始関数
+        function startMeasure(mode) {
+            // 既存の計測をクリア
+            clearMeasurements();
+            
+            measureMode = mode;
+            measurePoints = [];
+            
+            // ボタンの状態を更新
+            measureDistance.classList.remove('active');
+            measureArea.classList.remove('active');
+            
+            if (mode === 'distance') {
+                measureDistance.classList.add('active');
+                measureResult.textContent = '地図上をクリックして距離を計測してください';
+                map.getCanvas().style.cursor = 'crosshair';
+            } else if (mode === 'area') {
+                measureArea.classList.add('active');
+                measureResult.textContent = '地図上をクリックして面積を計測してください（3点以上）';
+                map.getCanvas().style.cursor = 'crosshair';
+            }
+            
+            // マップクリックイベントを追加
+            map.on('click', handleMeasureClick);
+        }
+        
+        // 計測クリックハンドラ
+        function handleMeasureClick(e) {
+            if (!measureMode) return;
+            
+            const point = [e.lngLat.lng, e.lngLat.lat];
+            measurePoints.push(point);
+            
+            // 小さな丸のマーカーを追加
+            const markerElement = document.createElement('div');
+            markerElement.style.width = '8px';
+            markerElement.style.height = '8px';
+            markerElement.style.backgroundColor = '#ff6b35';
+            markerElement.style.borderRadius = '50%';
+            markerElement.style.border = '2px solid white';
+            markerElement.style.boxShadow = '0 0 4px rgba(0,0,0,0.3)';
+            
+            const marker = new maplibregl.Marker({ element: markerElement })
+                .setLngLat(point)
+                .addTo(map);
+            measureMarkers.push(marker);
+            
+            if (measureMode === 'distance') {
+                handleDistanceMeasure();
+            } else if (measureMode === 'area') {
+                handleAreaMeasure();
+            }
+        }
+        
+        // 距離計測処理
+        function handleDistanceMeasure() {
+            if (measurePoints.length === 1) {
+                measureResult.textContent = '次の点をクリックしてください';
+                return;
+            }
+            
+            // 線を描画
+            if (measurePoints.length >= 2) {
+                const lastTwoPoints = measurePoints.slice(-2);
+                
+                // 既存のソースとレイヤーがあるかチェック
+                if (!map.getSource('measure-line')) {
+                    map.addSource('measure-line', {
+                        type: 'geojson',
+                        data: {
+                            type: 'Feature',
+                            geometry: {
+                                type: 'LineString',
+                                coordinates: measurePoints
+                            }
+                        }
+                    });
+                    
+                    map.addLayer({
+                        id: 'measure-line',
+                        type: 'line',
+                        source: 'measure-line',
+                        paint: {
+                            'line-color': '#ff6b35',
+                            'line-width': 3
+                        }
+                    });
+                } else {
+                    // 既存のソースを更新
+                    map.getSource('measure-line').setData({
+                        type: 'Feature',
+                        geometry: {
+                            type: 'LineString',
+                            coordinates: measurePoints
+                        }
+                    });
+                }
+            }
+            
+            // 総距離を計算
+            let totalDistance = 0;
+            for (let i = 1; i < measurePoints.length; i++) {
+                totalDistance += calculateDistance(measurePoints[i-1], measurePoints[i]);
+            }
+            
+            measureResult.textContent = `距離: ${formatDistance(totalDistance)} (クリックで続行、Escで終了)`;
+        }
+        
+        // 面積計測処理
+        function handleAreaMeasure() {
+            if (measurePoints.length < 3) {
+                measureResult.textContent = `${3 - measurePoints.length}点以上必要です`;
+                return;
+            }
+            
+            // ポリゴンを描画
+            const polygonCoords = [...measurePoints, measurePoints[0]]; // 閉じたポリゴン
+            
+            if (!map.getSource('measure-polygon')) {
+                map.addSource('measure-polygon', {
+                    type: 'geojson',
+                    data: {
+                        type: 'Feature',
+                        geometry: {
+                            type: 'Polygon',
+                            coordinates: [polygonCoords]
+                        }
+                    }
+                });
+                
+                map.addLayer({
+                    id: 'measure-polygon-fill',
+                    type: 'fill',
+                    source: 'measure-polygon',
+                    paint: {
+                        'fill-color': '#ff6b35',
+                        'fill-opacity': 0.3
+                    }
+                });
+                
+                map.addLayer({
+                    id: 'measure-polygon-line',
+                    type: 'line',
+                    source: 'measure-polygon',
+                    paint: {
+                        'line-color': '#ff6b35',
+                        'line-width': 3
+                    }
+                });
+            } else {
+                // 既存のソースを更新
+                map.getSource('measure-polygon').setData({
+                    type: 'Feature',
+                    geometry: {
+                        type: 'Polygon',
+                        coordinates: [polygonCoords]
+                    }
+                });
+            }
+            
+            // 面積を計算
+            const area = calculatePolygonArea(measurePoints);
+            measureResult.textContent = `面積: ${formatArea(area)} (クリックで続行、Escで終了)`;
+        }
+        
+        // 計測をクリア
+        function clearMeasurements() {
+            measureMode = null;
+            measurePoints = [];
+            
+            // マーカーを削除
+            measureMarkers.forEach(marker => marker.remove());
+            measureMarkers = [];
+            
+            // レイヤーとソースを削除
+            if (map.getLayer('measure-line')) {
+                map.removeLayer('measure-line');
+                map.removeSource('measure-line');
+            }
+            if (map.getLayer('measure-polygon-fill')) {
+                map.removeLayer('measure-polygon-fill');
+            }
+            if (map.getLayer('measure-polygon-line')) {
+                map.removeLayer('measure-polygon-line');
+            }
+            if (map.getSource('measure-polygon')) {
+                map.removeSource('measure-polygon');
+            }
+            
+            // ボタンの状態をリセット
+            measureDistance.classList.remove('active');
+            measureArea.classList.remove('active');
+            
+            // カーソルをリセット
+            map.getCanvas().style.cursor = '';
+            
+            // イベントリスナーを削除
+            map.off('click', handleMeasureClick);
+            
+            measureResult.textContent = '';
+        }
+        
+        // 2点間の距離を計算（メートル単位）
+        function calculateDistance([lng1, lat1], [lng2, lat2]) {
+            const R = 6371000; // 地球の半径（メートル）
+            const φ1 = lat1 * Math.PI / 180;
+            const φ2 = lat2 * Math.PI / 180;
+            const Δφ = (lat2 - lat1) * Math.PI / 180;
+            const Δλ = (lng2 - lng1) * Math.PI / 180;
+            
+            const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+                      Math.cos(φ1) * Math.cos(φ2) *
+                      Math.sin(Δλ/2) * Math.sin(Δλ/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            
+            return R * c;
+        }
+        
+        // ポリゴンの面積を計算（平方メートル単位）
+        function calculatePolygonArea(coordinates) {
+            if (coordinates.length < 3) return 0;
+            
+            let area = 0;
+            const n = coordinates.length;
+            
+            for (let i = 0; i < n; i++) {
+                const j = (i + 1) % n;
+                const [lng1, lat1] = coordinates[i];
+                const [lng2, lat2] = coordinates[j];
+                
+                area += (lng2 - lng1) * (lat2 + lat1);
+            }
+            
+            area = Math.abs(area) / 2;
+            
+            // 度からメートルへの概算変換（緯度による補正）
+            const avgLat = coordinates.reduce((sum, coord) => sum + coord[1], 0) / coordinates.length;
+            const latFactor = Math.cos(avgLat * Math.PI / 180);
+            const meterPerDegree = 111320; // 1度あたりのメートル数（概算）
+            
+            return area * meterPerDegree * meterPerDegree * latFactor;
+        }
+        
+        // 距離をフォーマット
+        function formatDistance(meters) {
+            if (meters < 1000) {
+                return `${meters.toFixed(1)} m`;
+            } else {
+                return `${(meters / 1000).toFixed(2)} km`;
+            }
+        }
+        
+        // 面積をフォーマット
+        function formatArea(squareMeters) {
+            if (squareMeters < 10000) {
+                return `${squareMeters.toFixed(1)} m²`;
+            } else {
+                return `${(squareMeters / 10000).toFixed(2)} ha`;
+            }
+        }
+        
         
         // 初期パネル位置を調整
         setTimeout(adjustPanelPositions, 100);
