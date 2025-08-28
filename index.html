@@ -1311,6 +1311,9 @@
                 currentGeoTIFF = { tiff, image, bbox };
                 geotiffRemove.style.display = 'block';
                 
+                // マップをGeoTIFFの範囲に合わせる
+                fitMapToGeoTIFF(bbox);
+                
                 // GeoTIFFコントロールパネルを展開
                 geotiffControls.classList.remove('minimized');
                 setTimeout(adjustPanelPositions, 100);
@@ -2045,6 +2048,28 @@
             map.fitBounds(bounds, { padding: 50 });
         }
         
+        // マップをGeoTIFFの範囲に合わせる関数
+        function fitMapToGeoTIFF(bbox) {
+            if (!bbox || bbox.length !== 4) {
+                console.warn('GeoTIFFのbbox情報が無効です:', bbox);
+                return;
+            }
+            
+            // bbox: [minX, minY, maxX, maxY] 形式
+            const [minX, minY, maxX, maxY] = bbox;
+            
+            // MapLibre GLのLngLatBounds形式に変換
+            const bounds = new maplibregl.LngLatBounds([minX, minY], [maxX, maxY]);
+            
+            // マップを範囲に合わせる
+            map.fitBounds(bounds, { 
+                padding: 50,
+                duration: 1000  // アニメーション時間を指定
+            });
+            
+            console.log('GeoTIFFの範囲に移動:', { minX, minY, maxX, maxY });
+        }
+        
         // ステータス表示関数
         function showStatus(message, type) {
             status.textContent = message;
@@ -2115,7 +2140,7 @@
                 currentTop += 60; // 最小化時の高さ + マージン
             }
             
-            // 計測パネル（GeoTIFFパネルの下に配置）
+            // 計測パネル
             if (!measureControls.classList.contains('minimized')) {
                 measureControls.style.top = currentTop + 'px';
                 currentTop += measureControls.offsetHeight + 10;
@@ -2124,7 +2149,7 @@
                 currentTop += 60; // 最小化時の高さ + マージン
             }
             
-            // ベースマップパネル（左下に固定）
+            // ベースマップパネル
             basemapControls.style.bottom = '10px';
             basemapControls.style.top = 'auto';
             basemapControls.style.left = '10px';
