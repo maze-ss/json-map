@@ -462,6 +462,264 @@ body {
 }
 
 /* ==========================================
+   手書きメモパネル
+   ========================================== */
+.drawing-controls {
+    position: absolute;
+    top: 320px;
+    left: 10px;
+    z-index: 1000;
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 8px;
+    padding: 15px;
+    width: 250px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    transition: all 0.3s ease;
+}
+
+.drawing-controls.minimized {
+    background: #9c27b0;
+}
+
+.drawing-controls h4 {
+    margin: 0;
+    color: #333;
+    font-size: 14px;
+}
+
+.drawing-mode-buttons {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.drawing-btn {
+    background: #9c27b0;
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: background 0.3s ease;
+    flex: 1;
+}
+
+.drawing-btn:hover {
+    background: #7b1fa2;
+}
+
+.drawing-btn.active {
+    background: #6a1b9a;
+}
+
+.pen-settings {
+    margin-bottom: 15px;
+}
+
+.pen-color-setting {
+    margin-bottom: 10px;
+}
+
+.pen-color-setting label {
+    display: block;
+    font-size: 12px;
+    margin-bottom: 5px;
+    color: #333;
+}
+
+.color-options {
+    display: flex;
+    gap: 5px;
+    flex-wrap: wrap;
+}
+
+.color-btn {
+    width: 25px;
+    height: 25px;
+    border: 2px solid #ddd;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.color-btn.active {
+    border-color: #333;
+    box-shadow: 0 0 5px rgba(0,0,0,0.3);
+}
+
+.color-btn:hover {
+    transform: scale(1.1);
+}
+
+.pen-width-setting {
+    margin-top: 10px;
+}
+
+.pen-width-setting label {
+    display: block;
+    font-size: 12px;
+    margin-bottom: 5px;
+    color: #333;
+}
+
+.pen-width-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.pen-width-controls input[type="range"] {
+    flex: 1;
+    margin: 0;
+}
+
+.pen-width-value {
+    font-size: 11px;
+    color: #666;
+    min-width: 30px;
+    text-align: right;
+}
+
+.drawing-actions {
+    margin-top: 10px;
+}
+
+.drawing-clear {
+    background: #dc3545;
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 11px;
+    width: 100%;
+    transition: background 0.2s ease;
+}
+
+.drawing-clear:hover {
+    background: #c82333;
+}
+
+/* ==========================================
+   座標系変換ダイアログ
+   ========================================== */
+.crs-dialog-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    z-index: 3000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.crs-dialog {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    max-width: 600px;
+    width: 90%;
+    max-height: 80%;
+    overflow-y: auto;
+}
+
+.crs-dialog-header {
+    background: #007cbf;
+    color: white;
+    padding: 15px 20px;
+    border-radius: 8px 8px 0 0;
+}
+
+.crs-dialog-header h3 {
+    margin: 0;
+    font-size: 18px;
+}
+
+.crs-dialog-content {
+    padding: 20px;
+}
+
+.crs-dialog-content p {
+    margin-bottom: 15px;
+    line-height: 1.5;
+}
+
+.crs-options {
+    margin: 20px 0;
+}
+
+.crs-option {
+    display: block;
+    margin-bottom: 15px;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.crs-option:hover {
+    background-color: #f8f9fa;
+}
+
+.crs-option input[type="radio"] {
+    margin-right: 10px;
+}
+
+.crs-label {
+    font-weight: bold;
+    display: block;
+    margin-bottom: 5px;
+}
+
+.crs-description {
+    font-size: 12px;
+    color: #666;
+    display: block;
+}
+
+.crs-dialog-buttons {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    margin-top: 20px;
+    padding-top: 15px;
+    border-top: 1px solid #ddd;
+}
+
+.crs-btn-cancel,
+.crs-btn-convert {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color 0.2s ease;
+}
+
+.crs-btn-cancel {
+    background: #6c757d;
+    color: white;
+}
+
+.crs-btn-cancel:hover {
+    background: #5a6268;
+}
+
+.crs-btn-convert {
+    background: #007cbf;
+    color: white;
+}
+
+.crs-btn-convert:hover {
+    background: #006aa0;
+}
+
+/* ==========================================
    レスポンシブ対応
    ========================================== */
 @media (max-width: 768px) {
@@ -475,7 +733,208 @@ body {
         width: 160px;
     }
     
-    .measure-controls {
+    .measure-controls,
+    .drawing-controls {
         width: 220px;
     }
+    
+    .model3d-controls {
+        width: 250px;
+    }
+}
+
+/* ================== 3Dモデルコントロール ================== */
+.model3d-controls {
+    position: fixed;
+    top: 220px;
+    right: 20px;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    z-index: 1000;
+    width: 280px;
+    transition: all 0.3s ease;
+}
+
+.model3d-controls.minimized {
+    width: 60px;
+    height: 40px;
+    overflow: hidden;
+}
+
+.model3d-controls .minimized-text {
+    display: none;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 12px;
+    font-weight: bold;
+    color: #333;
+}
+
+.model3d-controls.minimized .minimized-text {
+    display: block;
+}
+
+.model3d-controls.minimized .panel-header,
+.model3d-controls.minimized .model3d-content {
+    display: none;
+}
+
+.model3d-content {
+    padding: 15px;
+}
+
+.model3d-file-input {
+    margin-bottom: 15px;
+}
+
+.model3d-file-input input[type="file"] {
+    display: none;
+}
+
+.model3d-file-input label {
+    display: block;
+    padding: 10px;
+    background: #28a745;
+    color: white;
+    border-radius: 4px;
+    cursor: pointer;
+    text-align: center;
+    font-size: 14px;
+    transition: background-color 0.3s;
+}
+
+.model3d-file-input label:hover {
+    background: #218838;
+}
+
+.model3d-position {
+    margin-bottom: 15px;
+}
+
+.model3d-position label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: bold;
+    font-size: 14px;
+    color: #333;
+}
+
+.coordinate-inputs {
+    display: flex;
+    gap: 8px;
+}
+
+.coordinate-inputs input {
+    flex: 1;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 12px;
+}
+
+.model3d-scale,
+.model3d-rotation {
+    margin-bottom: 15px;
+}
+
+.model3d-scale label,
+.model3d-rotation label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: bold;
+    font-size: 14px;
+    color: #333;
+}
+
+.model3d-scale-controls,
+.model3d-rotation-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.model3d-scale-controls input[type="range"],
+.model3d-rotation-controls input[type="range"] {
+    flex: 1;
+}
+
+.model3d-scale-value,
+.model3d-rotation-value {
+    background: #f8f9fa;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: bold;
+    color: #333;
+    min-width: 40px;
+    text-align: center;
+}
+
+.model3d-status {
+    background: #e7f3ff;
+    border: 1px solid #bee5eb;
+    border-radius: 4px;
+    padding: 10px;
+    margin-bottom: 15px;
+    font-size: 14px;
+    color: #0c5460;
+}
+
+.model3d-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.model3d-load-btn {
+    flex: 1;
+    padding: 10px;
+    background: #007cba;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color 0.3s;
+}
+
+.model3d-load-btn:hover {
+    background: #005a87;
+}
+
+.model3d-remove-btn {
+    flex: 1;
+    padding: 10px;
+    background: #dc3545;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color 0.3s;
+}
+
+.model3d-remove-btn:hover {
+    background: #c82333;
+}
+
+/* ==========================================
+   ローディングアニメーション
+   ========================================== */
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* 変換ボタンのローディング状態 */
+.crs-btn-convert:disabled {
+    background-color: #6c757d !important;
+    cursor: not-allowed !important;
+    opacity: 0.7 !important;
+}
+
+.crs-btn-convert:disabled:hover {
+    background-color: #6c757d !important;
 }

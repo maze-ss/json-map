@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
@@ -8,6 +9,10 @@
     <link href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet" />
     <!-- GeoTIFF解析用ライブラリ -->
     <script src="https://cdn.jsdelivr.net/npm/geotiff@2.1.1/dist-browser/geotiff.js"></script>
+    <!-- 座標系変換用ライブラリ -->
+    <script src="https://cdn.jsdelivr.net/npm/proj4@2.9.0/dist/proj4.js"></script>
+    <!-- Turf.js（計測用） -->
+    <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
     <!-- カスタムスタイルシート -->
     <link href="styles.css" rel="stylesheet" />
 </head>
@@ -146,6 +151,41 @@
         <div class="minimized-text">計測</div>
     </div>
 
+    <!-- 座標系変換ダイアログ -->
+    <div class="crs-dialog-overlay" id="crsDialogOverlay" style="display: none;">
+        <div class="crs-dialog">
+            <div class="crs-dialog-header">
+                <h3>座標系変換</h3>
+            </div>
+            <div class="crs-dialog-content">
+                <p>このGeoJSONデータはWGS84座標系ではない可能性があります。</p>
+                <p>データの測地系を指定してください。</p>
+                
+                <div class="crs-options">
+                    <label class="crs-option">
+                        <input type="radio" name="sourceCrs" value="jgd2011" checked>
+                        <span class="crs-label">JGD2011 日本測地系2011</span>
+                        <span class="crs-description">平面直角座標系を選択してください</span>
+                        <div class="zone-selector" style="margin-top: 10px;">
+                            <select id="jgd2011Zone" style="width: 100%; padding: 5px; border: 1px solid #ddd; border-radius: 4px;">
+                                <option value="6677">9系 (EPSG:6677) - 群馬県・東京都・その他関東地方</option>
+                                <option value="6675">7系 (EPSG:6675) - 石川県・富山県・岐阜県・愛知県</option>
+                                <option value="6676">8系 (EPSG:6676) - 新潟県・長野県・山梨県・静岡県</option>
+                                <option value="6678">10系 (EPSG:6678) - 青森県・秋田県・山形県・岩手県・宮城県</option>
+                                <option value="6679">11系 (EPSG:6679) - 北海道の一部（小樽市・函館市など）</option>
+                            </select>
+                        </div>
+                    </label>
+                </div>
+                
+                <div class="crs-dialog-buttons">
+                    <button class="crs-btn-cancel" id="crsCancel">キャンセル</button>
+                    <button class="crs-btn-convert" id="crsConvert">変換して読み込み</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
         // 前橋市役所の座標 (緯度: 36.389494, 経度: 139.063437)
         const MAEBASHI_CITY_HALL = [139.063437, 36.389494];
@@ -259,6 +299,44 @@
         let measureLines = [];
         let measurePolygons = [];
         
+        // 座標系変換関連変数
+        let pendingGeoJSON = null;
+        let pendingGeoTIFF = null;
+        let crsDialogOverlay = null;
+        let currentDialogType = 'geojson'; // 'geojson' または 'geotiff'
+        
+        // 座標系定義（Proj4js用）
+        const crsDefinitions = {
+            // JGD2011 平面直角座標系 7系～11系
+            '6675': '+proj=tmerc +lat_0=36 +lon_0=137.166666666667 +k=0.9999 +x_0=0 +y_0=0 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs', // 7系
+            '6676': '+proj=tmerc +lat_0=36 +lon_0=138.5 +k=0.9999 +x_0=0 +y_0=0 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs', // 8系
+            '6677': '+proj=tmerc +lat_0=36 +lon_0=139.833333333333 +k=0.9999 +x_0=0 +y_0=0 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs', // 9系
+            '6678': '+proj=tmerc +lat_0=40 +lon_0=137.166666666667 +k=0.9999 +x_0=0 +y_0=0 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs', // 10系
+            '6679': '+proj=tmerc +lat_0=40 +lon_0=138.5 +k=0.9999 +x_0=0 +y_0=0 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs', // 11系
+            // その他の座標系（後方互換のため保持）
+            '6668': '+proj=tmerc +lat_0=33 +lon_0=129.5 +k=0.9999 +x_0=0 +y_0=0 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs',
+            '2451': '+proj=tmerc +lat_0=36 +lon_0=139.833333333333 +k=0.9999 +x_0=0 +y_0=0 +ellps=bessel +towgs84=-146.414,507.337,680.507,0,0,0,0 +units=m +no_defs'
+        };
+        
+        // Proj4js投影を初期化
+        const initializeProjections = () => {
+            try {
+                // WGS84
+                proj4.defs('EPSG:4326', '+proj=longlat +datum=WGS84 +no_defs');
+                
+                // 定義済み座標系を登録
+                Object.keys(crsDefinitions).forEach(epsg => {
+                    const projString = crsDefinitions[epsg];
+                    proj4.defs(`EPSG:${epsg}`, projString);
+                    console.log(`座標系定義登録: EPSG:${epsg}`);
+                });
+                
+                console.log('Proj4js初期化完了');
+            } catch (error) {
+                console.error('Proj4js初期化エラー:', error);
+            }
+        };
+        
         // DOM要素の取得
         const dropOverlay = document.getElementById('dropOverlay');
         const fileInput = document.getElementById('fileInput');
@@ -298,6 +376,12 @@
         const measureArea = document.getElementById('measureArea');
         const measureResult = document.getElementById('measureResult');
         const measureClear = document.getElementById('measureClear');
+        
+        // 座標系変換関連のDOM要素
+        crsDialogOverlay = document.getElementById('crsDialogOverlay');
+        const crsCancel = document.getElementById('crsCancel');
+        const crsConvert = document.getElementById('crsConvert');
+        const jgd2011Zone = document.getElementById('jgd2011Zone');
         
         // パネルの最小化/復元機能
         fileInputClose.addEventListener('click', (e) => {
@@ -402,7 +486,9 @@
             const files = e.dataTransfer.files;
             if (files.length > 0) {
                 const file = files[0];
-                if (file.name.toLowerCase().endsWith('.tif') || file.name.toLowerCase().endsWith('.tiff')) {
+                const fileName = file.name.toLowerCase();
+                
+                if (fileName.endsWith('.tif') || fileName.endsWith('.tiff')) {
                     handleGeoTIFFFile(file);
                 } else {
                     handleFile(file);
@@ -512,6 +598,39 @@
             }
         });
         
+        // 座標系変換ダイアログのイベント
+        crsCancel.addEventListener('click', () => {
+            hideCRSDialog();
+        });
+        
+        crsConvert.addEventListener('click', async () => {
+            const button = document.getElementById('crsConvert');
+            
+            // ボタンが既に無効化されている場合は処理しない
+            if (button.disabled) {
+                return;
+            }
+            
+            // ボタンを無効化
+            setConvertButtonState(true);
+            
+            try {
+                await handleCRSConversion();
+            } catch (error) {
+                console.error('変換処理エラー:', error);
+            } finally {
+                // 処理完了後にボタンを有効化
+                setConvertButtonState(false);
+            }
+        });
+        
+        // JGD2011選択時の処理
+        document.querySelector('input[value="jgd2011"]').addEventListener('change', (e) => {
+            if (e.target.checked) {
+                jgd2011Zone.focus();
+            }
+        });
+        
         // ファイル処理関数
         function handleFile(file) {
             if (!file.name.toLowerCase().endsWith('.geojson') && !file.name.toLowerCase().endsWith('.json')) {
@@ -523,13 +642,387 @@
             reader.onload = function(e) {
                 try {
                     const geoJSON = JSON.parse(e.target.result);
-                    loadGeoJSON(geoJSON);
-                    showStatus('GeoJSONファイルが正常に読み込まれました', 'success');
+                    
+                    // 座標系チェック
+                    if (!isWGS84Compatible(geoJSON)) {
+                        // WGS84ではない可能性がある場合はダイアログを表示
+                        pendingGeoJSON = geoJSON;
+                        showCRSDialog();
+                    } else {
+                        // WGS84互換の場合はそのまま読み込み
+                        loadGeoJSON(geoJSON);
+                        showStatus('GeoJSONファイルが正常に読み込まれました', 'success');
+                    }
                 } catch (error) {
                     showStatus('ファイルの解析エラー: ' + error.message, 'error');
                 }
             };
             reader.readAsText(file);
+        }
+        
+        // 座標系がWGS84互換かチェックする関数
+        function isWGS84Compatible(geoJSON) {
+            if (!geoJSON.features || geoJSON.features.length === 0) {
+                return true; // データがない場合はWGS84として扱う
+            }
+            
+            // CRSプロパティをチェック
+            if (geoJSON.crs && geoJSON.crs.properties && geoJSON.crs.properties.name) {
+                const crsName = geoJSON.crs.properties.name.toLowerCase();
+                if (crsName.includes('epsg:4326') || crsName.includes('wgs84')) {
+                    return true;
+                }
+                if (crsName.includes('epsg:') && !crsName.includes('epsg:4326')) {
+                    return false; // 4326以外のEPSGコードが明示されている
+                }
+            }
+            
+            // 座標値の範囲をチェック（WGS84は経度-180~180、緯度-90~90）
+            let suspiciousCount = 0;
+            let totalPoints = 0;
+            
+            function checkCoordinates(coords) {
+                if (Array.isArray(coords[0])) {
+                    // 多次元配列の場合は再帰的にチェック
+                    coords.forEach(checkCoordinates);
+                } else {
+                    // 座標点の場合
+                    const [lng, lat] = coords;
+                    totalPoints++;
+                    
+                    // WGS84の範囲外かチェック
+                    if (lng < -180 || lng > 180 || lat < -90 || lat > 90) {
+                        suspiciousCount++;
+                    }
+                    
+                    // 日本の座標系っぽい値かチェック（大きな座標値）
+                    if (Math.abs(lng) > 1000 || Math.abs(lat) > 1000) {
+                        suspiciousCount++;
+                    }
+                }
+            }
+            
+            // 最初のいくつかのフィーチャをサンプリング
+            const sampleSize = Math.min(geoJSON.features.length, 10);
+            for (let i = 0; i < sampleSize; i++) {
+                const feature = geoJSON.features[i];
+                if (feature.geometry && feature.geometry.coordinates) {
+                    checkCoordinates(feature.geometry.coordinates);
+                }
+            }
+            
+            // 疑わしい座標が50%以上ある場合はWGS84ではないと判定
+            if (totalPoints > 0 && suspiciousCount / totalPoints > 0.5) {
+                return false;
+            }
+            
+            return true;
+        }
+        
+        // GeoTIFFの座標系チェック関数
+        async function checkGeoTIFFCRS(geoKeys, image) {
+            try {
+                console.log('GeoTIFF GeoKeys:', geoKeys);
+                
+                // EPSGコードをチェック
+                let epsgCode = null;
+                if (geoKeys.ProjectedCSTypeGeoKey) {
+                    epsgCode = geoKeys.ProjectedCSTypeGeoKey;
+                    console.log('ProjectedCSTypeGeoKey:', epsgCode);
+                } else if (geoKeys.GeographicTypeGeoKey) {
+                    epsgCode = geoKeys.GeographicTypeGeoKey;
+                    console.log('GeographicTypeGeoKey:', epsgCode);
+                }
+                
+                // WGS84 (4326) かチェック
+                if (epsgCode === 4326) {
+                    console.log('WGS84として判定');
+                    return true;
+                }
+                
+                // JGD2011系 (6675-6679など) かチェック
+                if (epsgCode >= 6675 && epsgCode <= 6679) {
+                    console.log('JGD2011系として判定:', epsgCode);
+                    return false; // 変換が必要
+                }
+                
+                // その他の投影座標系
+                if (epsgCode && epsgCode !== 4326) {
+                    console.log('その他の投影座標系として判定:', epsgCode);
+                    return false; // 変換が必要
+                }
+                
+                // 座標範囲をチェック
+                const bbox = image.getBoundingBox();
+                console.log('GeoTIFF bbox:', bbox);
+                
+                if (bbox) {
+                    const [minX, minY, maxX, maxY] = bbox;
+                    
+                    // WGS84の範囲外かチェック
+                    if (minX < -180 || maxX > 180 || minY < -90 || maxY > 90) {
+                        console.log('WGS84範囲外として判定');
+                        return false; // 変換が必要
+                    }
+                    
+                    // 日本の投影座標系っぽい大きな値かチェック
+                    if (Math.abs(minX) > 1000 || Math.abs(maxX) > 1000 || 
+                        Math.abs(minY) > 1000 || Math.abs(maxY) > 1000) {
+                        console.log('投影座標系として判定（大きな座標値）');
+                        return false; // 変換が必要
+                    }
+                }
+                
+                console.log('WGS84として判定（デフォルト）');
+                return true; // WGS84と推定
+            } catch (error) {
+                console.warn('GeoTIFF座標系チェックエラー:', error);
+                return true; // エラーの場合はWGS84として扱う
+            }
+        }
+        
+        // 座標系変換ダイアログを表示
+        function showCRSDialog(type = 'geojson') {
+            currentDialogType = type;
+            
+            // ダイアログのタイトルを更新
+            const dialogHeader = crsDialogOverlay.querySelector('.crs-dialog-header h3');
+            if (type === 'geotiff') {
+                dialogHeader.textContent = 'GeoTIFF座標系変換';
+                
+                // メッセージも更新
+                const messages = crsDialogOverlay.querySelectorAll('.crs-dialog-content p');
+                messages[0].textContent = 'このGeoTIFFファイルはWGS84座標系ではない可能性があります。';
+                messages[1].textContent = 'データの測地系を指定してください。';
+            } else {
+                dialogHeader.textContent = '座標系変換';
+                
+                // メッセージを元に戻す
+                const messages = crsDialogOverlay.querySelectorAll('.crs-dialog-content p');
+                messages[0].textContent = 'このGeoJSONデータはWGS84座標系ではない可能性があります。';
+                messages[1].textContent = 'データの測地系を指定してください。';
+            }
+            
+            crsDialogOverlay.style.display = 'flex';
+        }
+        
+        // 座標系変換ダイアログを非表示
+        function hideCRSDialog() {
+            crsDialogOverlay.style.display = 'none';
+            pendingGeoJSON = null;
+            pendingGeoTIFF = null;
+            currentDialogType = 'geojson';
+        }
+        
+        // 変換ボタンの状態管理
+        function setConvertButtonState(isLoading) {
+            const button = document.getElementById('crsConvert');
+            const originalText = '変換して読み込み';
+            
+            if (isLoading) {
+                button.disabled = true;
+                button.innerHTML = `
+                    <span style="display: inline-flex; align-items: center;">
+                        <svg style="animation: spin 1s linear infinite; width: 16px; height: 16px; margin-right: 8px;" viewBox="0 0 24 24" fill="none">
+                            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" stroke-dasharray="31.416" stroke-dashoffset="31.416" opacity="0.3"/>
+                            <path d="M12 2C6.477 2 2 6.477 2 12" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+                        </svg>
+                        変換中...
+                    </span>
+                `;
+                button.style.backgroundColor = '#6c757d';
+                button.style.cursor = 'not-allowed';
+                button.style.opacity = '0.7';
+            } else {
+                button.disabled = false;
+                button.innerHTML = originalText;
+                button.style.backgroundColor = '';
+                button.style.cursor = '';
+                button.style.opacity = '';
+            }
+        }
+        
+        // 座標系変換を実行
+        async function handleCRSConversion() {
+            if (!pendingGeoJSON && !pendingGeoTIFF) return;
+            
+            // JGD2011のドロップダウンから系を選択
+            const sourceEpsg = jgd2011Zone.value;
+            
+            try {
+                if (currentDialogType === 'geotiff' && pendingGeoTIFF) {
+                    // GeoTIFFの座標系変換
+                    await handleGeoTIFFConversion(sourceEpsg);
+                } else if (pendingGeoJSON) {
+                    // GeoJSONの座標系変換
+                    const convertedGeoJSON = convertCRS(pendingGeoJSON, sourceEpsg, '4326');
+                    loadGeoJSON(convertedGeoJSON);
+                    
+                    // 変換完了メッセージに系の名前を含める
+                    const zoneName = getZoneName(sourceEpsg);
+                    showStatus(`座標系変換完了 (${zoneName} → WGS84)`, 'success');
+                }
+                
+                hideCRSDialog();
+            } catch (error) {
+                console.error('座標系変換エラー:', error);
+                alert('座標系変換に失敗しました: ' + error.message);
+            }
+        }
+        
+        // 座標系の名前を取得
+        function getZoneName(epsgCode) {
+            const zoneNames = {
+                '6675': 'JGD2011 7系',
+                '6676': 'JGD2011 8系', 
+                '6677': 'JGD2011 9系',
+                '6678': 'JGD2011 10系',
+                '6679': 'JGD2011 11系'
+            };
+            return zoneNames[epsgCode] || `EPSG:${epsgCode}`;
+        }
+        
+        // GeoTIFFの座標系変換処理
+        async function handleGeoTIFFConversion(sourceEpsg) {
+            if (!pendingGeoTIFF) return;
+            
+            try {
+                showGeoTIFFStatus('GeoTIFFファイルを解析中...', 'info');
+                console.log('GeoTIFF座標系変換開始:', sourceEpsg);
+                
+                // 元のGeoTIFFを読み込み
+                const tiff = await GeoTIFF.fromArrayBuffer(pendingGeoTIFF.arrayBuffer);
+                const image = await tiff.getImage();
+                const originalBbox = image.getBoundingBox();
+                console.log('元のbbox:', originalBbox);
+                
+                showGeoTIFFStatus('座標系変換を実行中...', 'info');
+                
+                // 座標変換
+                const convertedBbox = await convertGeoTIFFBbox(originalBbox, sourceEpsg, '4326');
+                console.log('変換後のbbox:', convertedBbox);
+                
+                showGeoTIFFStatus('GeoTIFFをマップに読み込み中...', 'info');
+                
+                // 変換後のGeoTIFFを読み込み
+                await loadGeoTIFF(pendingGeoTIFF.arrayBuffer, convertedBbox);
+                
+                const zoneName = getZoneName(sourceEpsg);
+                showGeoTIFFStatus(`GeoTIFF座標系変換完了 (${zoneName} → WGS84)`, 'success');
+                
+            } catch (error) {
+                console.error('GeoTIFF座標系変換エラー詳細:', error);
+                showGeoTIFFStatus('GeoTIFF座標系変換に失敗しました: ' + error.message, 'error');
+                throw error;
+            }
+        }
+        
+        // GeoTIFFのbbox変換（改良版）
+        async function convertGeoTIFFBbox(originalBbox, sourceEpsg, targetEpsg) {
+            try {
+                // Proj4jsで投影変換を定義
+                const sourceProj = `EPSG:${sourceEpsg}`;
+                const targetProj = `EPSG:${targetEpsg}`;
+                
+                console.log('変換:', sourceProj, '→', targetProj);
+                
+                // カスタムEPSGコードの場合、定義が必要
+                if (!proj4.defs(sourceProj)) {
+                    if (crsDefinitions[sourceEpsg]) {
+                        proj4.defs(sourceProj, crsDefinitions[sourceEpsg]);
+                        console.log('座標系定義を登録:', sourceProj);
+                    } else {
+                        throw new Error(`EPSG:${sourceEpsg} の座標系定義が見つかりません`);
+                    }
+                }
+                
+                // 4隅の座標を変換
+                const [minX, minY, maxX, maxY] = originalBbox;
+                const corners = [
+                    [minX, minY], // 左下
+                    [maxX, minY], // 右下
+                    [maxX, maxY], // 右上
+                    [minX, maxY]  // 左上
+                ];
+                
+                console.log('変換前の角座標:', corners);
+                
+                const transformedCorners = corners.map(corner => {
+                    const transformed = proj4(sourceProj, targetProj, corner);
+                    console.log(`${corner} → ${transformed}`);
+                    return transformed;
+                });
+                
+                // 変換後のbboxを計算
+                const transformedBbox = [
+                    Math.min(...transformedCorners.map(c => c[0])), // minX
+                    Math.min(...transformedCorners.map(c => c[1])), // minY
+                    Math.max(...transformedCorners.map(c => c[0])), // maxX
+                    Math.max(...transformedCorners.map(c => c[1]))  // maxY
+                ];
+                
+                console.log('変換後のbbox:', transformedBbox);
+                
+                // 結果の妥当性チェック
+                if (transformedBbox.some(val => !isFinite(val))) {
+                    throw new Error('座標変換結果が無効です');
+                }
+                
+                return transformedBbox;
+                
+            } catch (error) {
+                console.error('Bbox変換エラー:', error);
+                throw new Error(`座標変換に失敗しました: ${error.message}`);
+            }
+        }
+        
+        // 座標系変換関数
+        function convertCRS(geoJSON, sourceEpsg, targetEpsg) {
+            // Proj4jsで投影変換を定義
+            const sourceProj = `EPSG:${sourceEpsg}`;
+            const targetProj = `EPSG:${targetEpsg}`;
+            
+            // カスタムEPSGコードの場合、定義が必要
+            if (!proj4.defs(sourceProj)) {
+                if (crsDefinitions[sourceEpsg]) {
+                    proj4.defs(sourceProj, crsDefinitions[sourceEpsg]);
+                } else {
+                    throw new Error(`EPSG:${sourceEpsg} の座標系定義が見つかりません`);
+                }
+            }
+            
+            // GeoJSONをコピー
+            const convertedGeoJSON = JSON.parse(JSON.stringify(geoJSON));
+            
+            // 座標変換関数
+            function transformCoordinates(coords) {
+                if (Array.isArray(coords[0])) {
+                    // 多次元配列の場合は再帰的に変換
+                    return coords.map(transformCoordinates);
+                } else {
+                    // 座標点の場合は変換
+                    const [x, y] = coords;
+                    const transformed = proj4(sourceProj, targetProj, [x, y]);
+                    return [transformed[0], transformed[1]];
+                }
+            }
+            
+            // 全フィーチャの座標を変換
+            convertedGeoJSON.features.forEach(feature => {
+                if (feature.geometry && feature.geometry.coordinates) {
+                    feature.geometry.coordinates = transformCoordinates(feature.geometry.coordinates);
+                }
+            });
+            
+            // CRSプロパティを更新
+            convertedGeoJSON.crs = {
+                type: "name",
+                properties: {
+                    name: "EPSG:4326"
+                }
+            };
+            
+            return convertedGeoJSON;
         }
         
         // GeoTIFFファイル処理関数
@@ -545,8 +1038,24 @@
             reader.onload = async function(e) {
                 try {
                     const arrayBuffer = e.target.result;
-                    await loadGeoTIFF(arrayBuffer);
-                    showGeoTIFFStatus('GeoTIFFファイルが正常に読み込まれました', 'success');
+                    
+                    // GeoTIFFの座標系をチェック
+                    const tiff = await GeoTIFF.fromArrayBuffer(arrayBuffer);
+                    const image = await tiff.getImage();
+                    
+                    // GeoTIFFのCRS情報を取得
+                    const geoKeys = image.getGeoKeys();
+                    const isWGS84 = await checkGeoTIFFCRS(geoKeys, image);
+                    
+                    if (!isWGS84) {
+                        // WGS84ではない場合はダイアログを表示
+                        pendingGeoTIFF = { arrayBuffer, file };
+                        showCRSDialog('geotiff');
+                    } else {
+                        // WGS84の場合はそのまま読み込み
+                        await loadGeoTIFF(arrayBuffer);
+                        showGeoTIFFStatus('GeoTIFFファイルが正常に読み込まれました', 'success');
+                    }
                 } catch (error) {
                     console.error('GeoTIFF読み込みエラー:', error);
                     showGeoTIFFStatus('GeoTIFFファイルの読み込みエラー: ' + error.message, 'error');
@@ -556,7 +1065,7 @@
         }
         
         // GeoTIFF読み込み関数
-        async function loadGeoTIFF(arrayBuffer) {
+        async function loadGeoTIFF(arrayBuffer, customBbox = null) {
             try {
                 // 既存のGeoTIFFレイヤーを削除
                 removeGeoTIFF();
@@ -586,7 +1095,7 @@
                 }
                 
                 // 地理情報を取得
-                const bbox = image.getBoundingBox();
+                const bbox = customBbox || image.getBoundingBox();
                 
                 // リサンプリングサイズを決定（最大2048x2048）
                 const maxSize = 2048;
@@ -2068,6 +2577,9 @@
         
         // 初期パネル位置を調整
         setTimeout(adjustPanelPositions, 100);
+        
+        // Proj4js初期化
+        initializeProjections();
     </script>
 </body>
 </html>
